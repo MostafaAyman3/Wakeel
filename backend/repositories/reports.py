@@ -1,0 +1,2 @@
+"""Analytics report repository placeholder."""
+

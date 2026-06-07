@@ -1,0 +1,2 @@
+"""WebSocket event schema placeholder."""
+

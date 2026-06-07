@@ -1,0 +1,6 @@
+# Sprint 0 placeholder.
+# Maps natural-language ERP concepts to Odoo models and fields.
+# Must be validated by scripts/schema_validate.py before Sprint 1 agent work.
+
+concepts: {}
+

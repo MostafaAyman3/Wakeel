@@ -1,0 +1,2 @@
+"""Seed users script placeholder."""
+

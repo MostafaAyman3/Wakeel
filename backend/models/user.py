@@ -1,0 +1,2 @@
+"""User ORM model placeholder."""
+

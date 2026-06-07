@@ -1,0 +1,2 @@
+"""Odoo client tests placeholder."""
+

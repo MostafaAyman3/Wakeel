@@ -1,0 +1,2 @@
+"""Odoo tool placeholder."""
+

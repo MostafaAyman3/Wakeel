@@ -1,0 +1,2 @@
+"""RFQ draft repository placeholder."""
+

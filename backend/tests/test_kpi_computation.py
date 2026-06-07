@@ -1,0 +1,2 @@
+"""KPI computation tests placeholder."""
+

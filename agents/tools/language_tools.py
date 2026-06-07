@@ -1,0 +1,2 @@
+"""Language tool placeholder."""
+

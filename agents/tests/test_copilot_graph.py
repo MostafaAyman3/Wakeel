@@ -1,0 +1,2 @@
+"""Copilot graph tests placeholder."""
+

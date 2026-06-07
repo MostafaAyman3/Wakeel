@@ -1,0 +1,2 @@
+"""Demo validation script placeholder."""
+

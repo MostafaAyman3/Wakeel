@@ -1,0 +1,2 @@
+"""Copilot state schema placeholder."""
+

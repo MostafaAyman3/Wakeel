@@ -1,0 +1,2 @@
+"""Action confirmation schema placeholder."""
+

@@ -1,0 +1,2 @@
+"""Authentication API router placeholder."""
+

@@ -1,0 +1,2 @@
+"""Admin API router placeholder."""
+

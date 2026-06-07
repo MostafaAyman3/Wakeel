@@ -1,0 +1,2 @@
+"""OCR quote repository placeholder."""
+

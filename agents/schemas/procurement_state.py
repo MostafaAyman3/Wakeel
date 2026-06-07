@@ -1,0 +1,2 @@
+"""Procurement state schema placeholder."""
+

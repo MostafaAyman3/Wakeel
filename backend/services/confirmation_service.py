@@ -1,0 +1,2 @@
+"""Confirmation token service placeholder."""
+

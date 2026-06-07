@@ -1,0 +1,2 @@
+"""Entity resolver service placeholder."""
+

@@ -1,0 +1,2 @@
+"""Database dependency placeholder."""
+

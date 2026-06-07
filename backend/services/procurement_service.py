@@ -1,0 +1,2 @@
+"""Procurement service placeholder."""
+

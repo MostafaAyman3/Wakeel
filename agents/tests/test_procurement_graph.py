@@ -1,0 +1,2 @@
+"""Procurement graph tests placeholder."""
+

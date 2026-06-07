@@ -1,0 +1,2 @@
+"""Analytics schema placeholder."""
+

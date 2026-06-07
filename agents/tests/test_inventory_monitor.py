@@ -1,0 +1,2 @@
+"""Inventory monitor tests placeholder."""
+

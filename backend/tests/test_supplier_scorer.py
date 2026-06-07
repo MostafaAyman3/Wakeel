@@ -1,0 +1,2 @@
+"""Supplier scorer tests placeholder."""
+
