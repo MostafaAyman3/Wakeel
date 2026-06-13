@@ -1,2 +1,0 @@
-"""Confirmation gate tests placeholder."""
-

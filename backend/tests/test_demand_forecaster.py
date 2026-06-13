@@ -1,2 +1,0 @@
-"""Demand forecaster tests placeholder."""
-

@@ -1,0 +1,3 @@
+# Placeholder Tax Rules Document
+This directory is prepared for placing tax laws, rules, and PDF context sources for Module 1 Tax RAG.
+Seeded files will be parsed, chunked, and embedded into pgvector.
