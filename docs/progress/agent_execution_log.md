@@ -209,6 +209,9 @@ The following are NOT architecture tasks — they are implementation tasks for t
 - [x] Enable pgvector extension — v0.8.0 on PostgreSQL 17.6
 - [x] Seed mock ERP data — 13 tables with realistic data (invoices=318, orders=250, etc.)
 - [x] Configure .env (API keys, DB connection) — all connections verified
+- [x] FastAPI project setup + LangGraph + SQLAlchemy async pool — implemented (`backend/main.py`, `backend/core/database.py`)
+- [x] LLM Client: single instance for GPT-4o / GPT-4o-mini — implemented (`agents/shared/llm_client.py`)
+- [x] Shared Services: JWT auth + logging + error handler — implemented (`backend/core/auth.py`, `logging.py`, `middleware/error_handler.py`)
 - [x] **Sprint 0 COMPLETE** ✅
 
 ### M1 — Sprint 1

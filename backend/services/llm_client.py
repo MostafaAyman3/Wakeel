@@ -1,4 +1,14 @@
-﻿# PLACEHOLDER — Architecture prepared. Implementation required.
+"""
+Backend LLM client service — re-exports the shared LLM instances
+for use in backend services (orchestrators, etc.).
 
-"Shared LLM Client service — single instantiation of GPT-4o and GPT-4o-mini. All backend services and agent orchestrators import LLM from here. Also provides text-embedding-3-small client for Tax RAG."
+Backend services should import from here rather than from agents/shared
+to maintain clean layer boundaries.
 
+Usage:
+    from backend.services.llm_client import llm_primary, llm_fast, embeddings
+"""
+
+from agents.shared.llm_client import embeddings, llm_fast, llm_primary
+
+__all__ = ["llm_primary", "llm_fast", "embeddings"]
