@@ -223,6 +223,46 @@ Result: SUCCESS — M1 and M3 Sprint 0 are 100% complete.
 
 ---
 
+## Step 16
+
+Time: 2026-06-14
+Action: Implemented M1-Sprint 1 — LangGraph Skeleton + Intent Classifier + Router
+Reason: Sprint 1 deliverable — "agent يصنّف، يوجّه، ويتحقق — بدون data retrieval بعد"
+Files created/updated:
+- agents/m1/schemas/m1_state.py — M1State TypedDict (13 fields, total=False for LangGraph partial updates)
+- agents/prompts/intent_classifier.py — Bilingual system prompt with DB schema reference
+- agents/m1/nodes/intent_classifier_node.py — GPT-4o-mini classifier with auto language detection
+- agents/m1/nodes/router_node.py — Conditional edge routing (5 intents → 4 target nodes)
+- agents/m1/nodes/clarification_node.py — Bilingual clarification question generator
+- agents/m1/nodes/validation_enrichment_node.py — Data validation (Sprint 1 simplified)
+- agents/m1/nodes/stub_nodes.py — 3 placeholder tool nodes returning valid state with stub=true
+- agents/m1/graphs/m1_graph.py — LangGraph StateGraph wiring (7 nodes compiled)
+- backend/api/v1/m1_query.py — /query endpoint wired to m1_graph, errors return QueryResponse
+- scripts/migrations/001_create_conversations.sql — conversations table for Sprint 6 multi-turn
+- scripts/test_sprint1.py — Integration test (6 test cases, real LLM calls)
+- agents/m1/nodes/__init__.py, agents/m1/schemas/__init__.py, agents/m1/graphs/__init__.py, agents/prompts/__init__.py — Package inits
+Key decisions:
+- Language auto-detection: Arabic Unicode range (U+0600–U+06FF), overridden by explicit parameter
+- Structured output: method="function_calling" (OpenAI strict mode rejects dict with additionalProperties)
+- Stub nodes return valid state with metadata.stub=true, not "not implemented" messages
+- Error responses use QueryResponse(format="error") — never HTTP exceptions
+- Single-turn in Sprint 1; conversations table created for Sprint 6 multi-turn
+Verification:
+- All 9 Python files pass syntax check ✅
+- M1State imports correctly (13 fields) ✅
+- LangGraph compiles successfully (7 nodes) ✅
+- Language detection: Arabic→"ar", English→"en" ✅
+- Integration test: 6/6 PASSED ✅
+  - financial_query (AR): confidence=0.9, extracted date_range ✅
+  - invoice_analysis (EN): confidence=0.9, extracted date_range ✅
+  - tax_reasoning (AR): confidence=0.9, extracted amount=50000 ✅
+  - operational_query (EN): confidence=0.9, extracted date_range + order_status ✅
+  - clarification_needed (AR): confidence=0.3, generated Arabic clarification ✅
+  - clarification_needed (EN): confidence=0.2, generated English clarification ✅
+Result: SUCCESS — M1 Sprint 1 COMPLETE
+
+---
+
 ## Remaining Work (for implementation phase)
 
 The following are NOT architecture tasks — they are implementation tasks for the development team:
@@ -239,12 +279,13 @@ The following are NOT architecture tasks — they are implementation tasks for t
 - [x] **Sprint 0 COMPLETE** ✅
 
 ### M1 — Sprint 1
-- [ ] Implement IntentClassifierNode (GPT-4o-mini, 5 intents)
-- [ ] Implement RouterNode
-- [ ] Implement ClarificationNode
-- [ ] Implement ValidationEnrichmentNode
-- [ ] Wire m1_graph.py LangGraph StateGraph
-- [ ] Endpoint /query: accepts { query, language }, returns JSON
+- [x] Implement IntentClassifierNode (GPT-4o-mini, 5 intents) — `agents/m1/nodes/intent_classifier_node.py`
+- [x] Implement RouterNode — `agents/m1/nodes/router_node.py`
+- [x] Implement ClarificationNode — `agents/m1/nodes/clarification_node.py`
+- [x] Implement ValidationEnrichmentNode — `agents/m1/nodes/validation_enrichment_node.py`
+- [x] Wire m1_graph.py LangGraph StateGraph — `agents/m1/graphs/m1_graph.py` (7 nodes compiled)
+- [x] Endpoint /query: accepts { query, language }, returns JSON — `backend/api/v1/m1_query.py`
+- [x] **Sprint 1 COMPLETE** ✅
 
 ### M1 — Sprint 2
 - [ ] Implement 10 SQL query templates in db_query_tool.py
