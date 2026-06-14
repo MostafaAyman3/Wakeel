@@ -199,6 +199,30 @@ Result: SUCCESS — all Sprint 0 infrastructure verified and operational
 
 ---
 
+## Step 15
+
+Time: 2026-06-14
+Action: Completed all Python infrastructure requirements for M1/M3 Sprint 0
+Reason: Sprint 0 requirement — "FastAPI project setup + LangGraph + SQLAlchemy async pool", "LLM Client", "Shared Services"
+Files created/updated:
+- backend/core/config.py (Pydantic Settings)
+- backend/core/database.py (SQLAlchemy async pool with read-write and read-only engines)
+- backend/core/logging.py (Structlog configuration)
+- backend/core/auth.py (JWT authentication layer)
+- backend/middleware/error_handler.py (Global error handler)
+- agents/shared/llm_client.py (Shared LLM instance)
+- backend/services/llm_client.py (LLM re-export for backend)
+- backend/api/v1/m1_query.py & backend/api/v1/m3_support.py (Router placeholders)
+- backend/main.py (FastAPI app wiring)
+- scripts/verify_sprint0.py (Verification script)
+- Added `__init__.py` files to make directories proper Python packages.
+Details:
+- User modified `.env` manually: `OPENAI_MODEL_PRIMARY=gpt-5.1`
+- Ran `scripts/verify_sprint0.py` which confirmed 9/9 checks PASSED.
+Result: SUCCESS — M1 and M3 Sprint 0 are 100% complete.
+
+---
+
 ## Remaining Work (for implementation phase)
 
 The following are NOT architecture tasks — they are implementation tasks for the development team:
