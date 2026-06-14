@@ -1,0 +1,1489 @@
+{
+  "generated_at": "2026-06-14T19:01:35.732336",
+  "source": "supabase",
+  "schema": "public",
+  "tables": {
+    "audit_log": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "entity_type",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 50,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "entity_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 3
+        },
+        {
+          "name": "action",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 50,
+          "nullable": false,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "details",
+          "data_type": "jsonb",
+          "udt_name": "jsonb",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 5
+        },
+        {
+          "name": "performed_by",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 100,
+          "nullable": true,
+          "default": null,
+          "position": 6
+        },
+        {
+          "name": "created_at",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": "now()",
+          "position": 7
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "audit_log_pkey",
+          "definition": "CREATE UNIQUE INDEX audit_log_pkey ON public.audit_log USING btree (id)"
+        }
+      ],
+      "row_count": 0
+    },
+    "customer_interactions": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "customer_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "order_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 3
+        },
+        {
+          "name": "interaction_type",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 30,
+          "nullable": false,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "issue_type",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 30,
+          "nullable": true,
+          "default": null,
+          "position": 5
+        },
+        {
+          "name": "description",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 6
+        },
+        {
+          "name": "resolution",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 7
+        },
+        {
+          "name": "status",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 20,
+          "nullable": true,
+          "default": "'Open'::character varying",
+          "position": 8
+        },
+        {
+          "name": "agent_name",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 100,
+          "nullable": true,
+          "default": null,
+          "position": 9
+        },
+        {
+          "name": "created_at",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": "now()",
+          "position": 10
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "column": "customer_id",
+          "references_table": "customers",
+          "references_column": "id",
+          "constraint_name": "customer_interactions_customer_id_fkey"
+        },
+        {
+          "column": "order_id",
+          "references_table": "orders",
+          "references_column": "id",
+          "constraint_name": "customer_interactions_order_id_fkey"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "customer_interactions_pkey",
+          "definition": "CREATE UNIQUE INDEX customer_interactions_pkey ON public.customer_interactions USING btree (id)"
+        },
+        {
+          "name": "idx_interactions_customer",
+          "definition": "CREATE INDEX idx_interactions_customer ON public.customer_interactions USING btree (customer_id)"
+        },
+        {
+          "name": "idx_interactions_issue",
+          "definition": "CREATE INDEX idx_interactions_issue ON public.customer_interactions USING btree (issue_type)"
+        }
+      ],
+      "row_count": 32
+    },
+    "customers": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "display_id",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 20,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "name",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 200,
+          "nullable": false,
+          "default": null,
+          "position": 3
+        },
+        {
+          "name": "name_ar",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 200,
+          "nullable": true,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "email",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 200,
+          "nullable": true,
+          "default": null,
+          "position": 5
+        },
+        {
+          "name": "phone",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 30,
+          "nullable": true,
+          "default": null,
+          "position": 6
+        },
+        {
+          "name": "address",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 7
+        },
+        {
+          "name": "city",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 100,
+          "nullable": true,
+          "default": null,
+          "position": 8
+        },
+        {
+          "name": "tier",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 20,
+          "nullable": true,
+          "default": "'Normal'::character varying",
+          "position": 9
+        },
+        {
+          "name": "lifetime_value",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": true,
+          "default": "0",
+          "position": 10
+        },
+        {
+          "name": "created_at",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": "now()",
+          "position": 11
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "customers_pkey",
+          "definition": "CREATE UNIQUE INDEX customers_pkey ON public.customers USING btree (id)"
+        },
+        {
+          "name": "customers_display_id_key",
+          "definition": "CREATE UNIQUE INDEX customers_display_id_key ON public.customers USING btree (display_id)"
+        },
+        {
+          "name": "customers_email_key",
+          "definition": "CREATE UNIQUE INDEX customers_email_key ON public.customers USING btree (email)"
+        }
+      ],
+      "row_count": 50
+    },
+    "inventory": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "product_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "quantity",
+          "data_type": "integer",
+          "udt_name": "int4",
+          "max_length": null,
+          "nullable": false,
+          "default": "0",
+          "position": 3
+        },
+        {
+          "name": "warehouse_location",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 50,
+          "nullable": true,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "reorder_point",
+          "data_type": "integer",
+          "udt_name": "int4",
+          "max_length": null,
+          "nullable": true,
+          "default": "10",
+          "position": 5
+        },
+        {
+          "name": "last_restocked",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 6
+        },
+        {
+          "name": "updated_at",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": "now()",
+          "position": 7
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "column": "product_id",
+          "references_table": "products",
+          "references_column": "id",
+          "constraint_name": "inventory_product_id_fkey"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "inventory_pkey",
+          "definition": "CREATE UNIQUE INDEX inventory_pkey ON public.inventory USING btree (id)"
+        },
+        {
+          "name": "idx_inventory_product",
+          "definition": "CREATE INDEX idx_inventory_product ON public.inventory USING btree (product_id)"
+        }
+      ],
+      "row_count": 25
+    },
+    "invoice_items": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "invoice_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "product_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 3
+        },
+        {
+          "name": "description",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 300,
+          "nullable": true,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "quantity",
+          "data_type": "integer",
+          "udt_name": "int4",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 5
+        },
+        {
+          "name": "unit_price",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 6
+        },
+        {
+          "name": "total_price",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 7
+        },
+        {
+          "name": "tax_amount",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": true,
+          "default": "0",
+          "position": 8
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "column": "invoice_id",
+          "references_table": "invoices",
+          "references_column": "id",
+          "constraint_name": "invoice_items_invoice_id_fkey"
+        },
+        {
+          "column": "product_id",
+          "references_table": "products",
+          "references_column": "id",
+          "constraint_name": "invoice_items_product_id_fkey"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "invoice_items_pkey",
+          "definition": "CREATE UNIQUE INDEX invoice_items_pkey ON public.invoice_items USING btree (id)"
+        },
+        {
+          "name": "idx_invoice_items_invoice",
+          "definition": "CREATE INDEX idx_invoice_items_invoice ON public.invoice_items USING btree (invoice_id)"
+        }
+      ],
+      "row_count": 662
+    },
+    "invoices": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "display_id",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 30,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "type",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 20,
+          "nullable": false,
+          "default": null,
+          "position": 3
+        },
+        {
+          "name": "order_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "customer_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 5
+        },
+        {
+          "name": "vendor_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 6
+        },
+        {
+          "name": "invoice_date",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 7
+        },
+        {
+          "name": "total_amount",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 8
+        },
+        {
+          "name": "tax_amount",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": true,
+          "default": "0",
+          "position": 9
+        },
+        {
+          "name": "due_date",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 10
+        },
+        {
+          "name": "payment_status",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 20,
+          "nullable": true,
+          "default": "'Unpaid'::character varying",
+          "position": 11
+        },
+        {
+          "name": "notes",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 12
+        },
+        {
+          "name": "created_at",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": "now()",
+          "position": 13
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "column": "customer_id",
+          "references_table": "customers",
+          "references_column": "id",
+          "constraint_name": "invoices_customer_id_fkey"
+        },
+        {
+          "column": "order_id",
+          "references_table": "orders",
+          "references_column": "id",
+          "constraint_name": "invoices_order_id_fkey"
+        },
+        {
+          "column": "vendor_id",
+          "references_table": "vendors",
+          "references_column": "id",
+          "constraint_name": "invoices_vendor_id_fkey"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "invoices_pkey",
+          "definition": "CREATE UNIQUE INDEX invoices_pkey ON public.invoices USING btree (id)"
+        },
+        {
+          "name": "invoices_display_id_key",
+          "definition": "CREATE UNIQUE INDEX invoices_display_id_key ON public.invoices USING btree (display_id)"
+        },
+        {
+          "name": "idx_invoices_customer",
+          "definition": "CREATE INDEX idx_invoices_customer ON public.invoices USING btree (customer_id)"
+        },
+        {
+          "name": "idx_invoices_vendor",
+          "definition": "CREATE INDEX idx_invoices_vendor ON public.invoices USING btree (vendor_id)"
+        },
+        {
+          "name": "idx_invoices_date",
+          "definition": "CREATE INDEX idx_invoices_date ON public.invoices USING btree (invoice_date)"
+        },
+        {
+          "name": "idx_invoices_status",
+          "definition": "CREATE INDEX idx_invoices_status ON public.invoices USING btree (payment_status)"
+        },
+        {
+          "name": "idx_invoices_type",
+          "definition": "CREATE INDEX idx_invoices_type ON public.invoices USING btree (type)"
+        },
+        {
+          "name": "idx_invoices_display",
+          "definition": "CREATE INDEX idx_invoices_display ON public.invoices USING btree (display_id)"
+        }
+      ],
+      "row_count": 318
+    },
+    "order_items": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "order_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "product_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 3
+        },
+        {
+          "name": "quantity",
+          "data_type": "integer",
+          "udt_name": "int4",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "unit_price",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 5
+        },
+        {
+          "name": "total_price",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 6
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "column": "order_id",
+          "references_table": "orders",
+          "references_column": "id",
+          "constraint_name": "order_items_order_id_fkey"
+        },
+        {
+          "column": "product_id",
+          "references_table": "products",
+          "references_column": "id",
+          "constraint_name": "order_items_product_id_fkey"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "order_items_pkey",
+          "definition": "CREATE UNIQUE INDEX order_items_pkey ON public.order_items USING btree (id)"
+        },
+        {
+          "name": "idx_order_items_order",
+          "definition": "CREATE INDEX idx_order_items_order ON public.order_items USING btree (order_id)"
+        }
+      ],
+      "row_count": 594
+    },
+    "orders": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "display_id",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 30,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "customer_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 3
+        },
+        {
+          "name": "order_date",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "status",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 30,
+          "nullable": false,
+          "default": "'Pending'::character varying",
+          "position": 5
+        },
+        {
+          "name": "total_amount",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 6
+        },
+        {
+          "name": "tax_amount",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": true,
+          "default": "0",
+          "position": 7
+        },
+        {
+          "name": "estimated_delivery",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 8
+        },
+        {
+          "name": "notes",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 9
+        },
+        {
+          "name": "created_at",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": "now()",
+          "position": 10
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "column": "customer_id",
+          "references_table": "customers",
+          "references_column": "id",
+          "constraint_name": "orders_customer_id_fkey"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "orders_pkey",
+          "definition": "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)"
+        },
+        {
+          "name": "orders_display_id_key",
+          "definition": "CREATE UNIQUE INDEX orders_display_id_key ON public.orders USING btree (display_id)"
+        },
+        {
+          "name": "idx_orders_customer",
+          "definition": "CREATE INDEX idx_orders_customer ON public.orders USING btree (customer_id)"
+        },
+        {
+          "name": "idx_orders_date",
+          "definition": "CREATE INDEX idx_orders_date ON public.orders USING btree (order_date)"
+        },
+        {
+          "name": "idx_orders_status",
+          "definition": "CREATE INDEX idx_orders_status ON public.orders USING btree (status)"
+        },
+        {
+          "name": "idx_orders_display",
+          "definition": "CREATE INDEX idx_orders_display ON public.orders USING btree (display_id)"
+        }
+      ],
+      "row_count": 250
+    },
+    "payments": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "invoice_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "amount",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 3
+        },
+        {
+          "name": "payment_date",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "payment_method",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 30,
+          "nullable": true,
+          "default": "'Bank Transfer'::character varying",
+          "position": 5
+        },
+        {
+          "name": "reference_number",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 50,
+          "nullable": true,
+          "default": null,
+          "position": 6
+        },
+        {
+          "name": "created_at",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": "now()",
+          "position": 7
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "column": "invoice_id",
+          "references_table": "invoices",
+          "references_column": "id",
+          "constraint_name": "payments_invoice_id_fkey"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "payments_pkey",
+          "definition": "CREATE UNIQUE INDEX payments_pkey ON public.payments USING btree (id)"
+        },
+        {
+          "name": "idx_payments_invoice",
+          "definition": "CREATE INDEX idx_payments_invoice ON public.payments USING btree (invoice_id)"
+        }
+      ],
+      "row_count": 145
+    },
+    "products": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "sku",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 30,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "name",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 200,
+          "nullable": false,
+          "default": null,
+          "position": 3
+        },
+        {
+          "name": "name_ar",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 200,
+          "nullable": true,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "category",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 100,
+          "nullable": false,
+          "default": null,
+          "position": 5
+        },
+        {
+          "name": "category_ar",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 100,
+          "nullable": true,
+          "default": null,
+          "position": 6
+        },
+        {
+          "name": "unit_price",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 7
+        },
+        {
+          "name": "cost_price",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 8
+        },
+        {
+          "name": "vat_rate",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": true,
+          "default": "14.00",
+          "position": 9
+        },
+        {
+          "name": "is_active",
+          "data_type": "boolean",
+          "udt_name": "bool",
+          "max_length": null,
+          "nullable": true,
+          "default": "true",
+          "position": 10
+        },
+        {
+          "name": "created_at",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": "now()",
+          "position": 11
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "products_pkey",
+          "definition": "CREATE UNIQUE INDEX products_pkey ON public.products USING btree (id)"
+        },
+        {
+          "name": "products_sku_key",
+          "definition": "CREATE UNIQUE INDEX products_sku_key ON public.products USING btree (sku)"
+        }
+      ],
+      "row_count": 25
+    },
+    "shipments": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "order_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "tracking_number",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 30,
+          "nullable": false,
+          "default": null,
+          "position": 3
+        },
+        {
+          "name": "carrier",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 100,
+          "nullable": false,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "status",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 30,
+          "nullable": true,
+          "default": "'Processing'::character varying",
+          "position": 5
+        },
+        {
+          "name": "current_location",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 200,
+          "nullable": true,
+          "default": null,
+          "position": 6
+        },
+        {
+          "name": "estimated_delivery",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 7
+        },
+        {
+          "name": "shipped_date",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 8
+        },
+        {
+          "name": "delivered_date",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 9
+        },
+        {
+          "name": "updated_at",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": "now()",
+          "position": 10
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "column": "order_id",
+          "references_table": "orders",
+          "references_column": "id",
+          "constraint_name": "shipments_order_id_fkey"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "shipments_pkey",
+          "definition": "CREATE UNIQUE INDEX shipments_pkey ON public.shipments USING btree (id)"
+        },
+        {
+          "name": "idx_shipments_order",
+          "definition": "CREATE INDEX idx_shipments_order ON public.shipments USING btree (order_id)"
+        },
+        {
+          "name": "idx_shipments_tracking",
+          "definition": "CREATE INDEX idx_shipments_tracking ON public.shipments USING btree (tracking_number)"
+        }
+      ],
+      "row_count": 189
+    },
+    "transactions": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "type",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 20,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "category",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 100,
+          "nullable": false,
+          "default": null,
+          "position": 3
+        },
+        {
+          "name": "amount",
+          "data_type": "numeric",
+          "udt_name": "numeric",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "description",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 5
+        },
+        {
+          "name": "transaction_date",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 6
+        },
+        {
+          "name": "reference_type",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 30,
+          "nullable": true,
+          "default": null,
+          "position": 7
+        },
+        {
+          "name": "reference_id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 8
+        },
+        {
+          "name": "created_at",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": "now()",
+          "position": 9
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "transactions_pkey",
+          "definition": "CREATE UNIQUE INDEX transactions_pkey ON public.transactions USING btree (id)"
+        },
+        {
+          "name": "idx_transactions_date",
+          "definition": "CREATE INDEX idx_transactions_date ON public.transactions USING btree (transaction_date)"
+        },
+        {
+          "name": "idx_transactions_type",
+          "definition": "CREATE INDEX idx_transactions_type ON public.transactions USING btree (type)"
+        },
+        {
+          "name": "idx_transactions_category",
+          "definition": "CREATE INDEX idx_transactions_category ON public.transactions USING btree (category)"
+        }
+      ],
+      "row_count": 233
+    },
+    "vendors": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "display_id",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 20,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "name",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 200,
+          "nullable": false,
+          "default": null,
+          "position": 3
+        },
+        {
+          "name": "name_ar",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 200,
+          "nullable": true,
+          "default": null,
+          "position": 4
+        },
+        {
+          "name": "contact_email",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 200,
+          "nullable": true,
+          "default": null,
+          "position": 5
+        },
+        {
+          "name": "phone",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 30,
+          "nullable": true,
+          "default": null,
+          "position": 6
+        },
+        {
+          "name": "address",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 7
+        },
+        {
+          "name": "city",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 100,
+          "nullable": true,
+          "default": null,
+          "position": 8
+        },
+        {
+          "name": "category",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 100,
+          "nullable": true,
+          "default": null,
+          "position": 9
+        },
+        {
+          "name": "payment_terms",
+          "data_type": "character varying",
+          "udt_name": "varchar",
+          "max_length": 50,
+          "nullable": true,
+          "default": "'Net 30'::character varying",
+          "position": 10
+        },
+        {
+          "name": "created_at",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": true,
+          "default": "now()",
+          "position": 11
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "vendors_pkey",
+          "definition": "CREATE UNIQUE INDEX vendors_pkey ON public.vendors USING btree (id)"
+        },
+        {
+          "name": "vendors_display_id_key",
+          "definition": "CREATE UNIQUE INDEX vendors_display_id_key ON public.vendors USING btree (display_id)"
+        }
+      ],
+      "row_count": 10
+    }
+  }
+}
