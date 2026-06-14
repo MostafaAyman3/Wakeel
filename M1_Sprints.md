@@ -1,4 +1,4 @@
-# M1 — Sprint Plan: AI ERP Intelligence Agent
+ # M1 — Sprint Plan: AI ERP Intelligence Agent
 
 ---
 

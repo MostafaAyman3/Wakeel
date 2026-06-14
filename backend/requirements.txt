@@ -20,4 +20,5 @@ pytest
 pytest-asyncio
 httpx
 ruff
-
+sqlglot
+python-dotenv

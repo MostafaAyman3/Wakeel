@@ -38,10 +38,6 @@ def _build_stub_response(state: M1State, pending_sprint: int) -> dict:
     }
 
 
-async def db_query_stub(state: M1State) -> dict:
-    """Placeholder for Sprint 2 — Dynamic Query Builder (10 templates)."""
-    return _build_stub_response(state, pending_sprint=2)
-
 
 async def invoice_analysis_stub(state: M1State) -> dict:
     """Placeholder for Sprint 3 — Invoice Analysis Tool (4-node sub-pipeline)."""

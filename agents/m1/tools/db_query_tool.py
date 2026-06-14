@@ -1,2 +1,289 @@
-"""Analytics tool placeholder."""
+"""
+Dynamic Query Builder Tool (Sprint 2)
+Matches user queries to 10 predefined SQL templates, extracts parameters,
+validates the SQL, and executes on the read-only database.
+"""
+from __future__ import annotations
 
+import json
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy import text
+from pydantic import BaseModel, Field
+import structlog
+
+from agents.shared.llm_client import llm_fast
+from agents.m1.schemas.m1_state import M1State
+from backend.core.database import get_readonly_session
+
+logger = structlog.get_logger(__name__)
+
+try:
+    import sqlglot
+    from sqlglot import exp
+    SQLGLOT_AVAILABLE = True
+except ImportError:
+    SQLGLOT_AVAILABLE = False
+    logger.warning("sqlglot not installed. AST validation skipped. Relying on readonly user.")
+
+
+class TemplateSelection(BaseModel):
+    """Structured output for selecting the right template and formatting its parameters."""
+    template_id: str = Field(
+        description="Must be exactly one of: T1, T2, T3, T4, T5, T6, T7, T8, T9, T10"
+    )
+    start_date: str | None = Field(default=None, description="YYYY-MM-DD or None")
+    end_date: str | None = Field(default=None, description="YYYY-MM-DD or None")
+    as_of_date: str | None = Field(default=None, description="YYYY-MM-DD or None")
+    vendor_id: str | None = Field(default=None, description="Vendor ID (UUID or text string) or None")
+    payment_status: str | None = Field(default=None, description="Paid, Unpaid, Partial, Overdue, or None")
+    n: int = Field(default=5, description="Limit for top N queries")
+    order: str = Field(default="DESC", description="ASC or DESC")
+    multiplier: float = Field(default=2.0, description="Multiplier for anomaly detection")
+
+
+TEMPLATE_PROMPT = """\
+You are a SQL Template Selector for an ERP Intelligence Agent.
+Match the user's query to exactly ONE of the 10 predefined templates below.
+
+T1 (revenue_by_period): Sum of revenue between start and end dates.
+T2 (sales_time_series): Daily/Monthly sales aggregation for Line Charts.
+T3 (executive_summary): High-level summary of sales, purchases, and net income.
+T4 (aging_buckets): Accounts receivable aging buckets (0-30, 30-60, 60-90, 90+ days). Needs as_of_date.
+T5 (vat_summary): VAT tax totals within a specific period.
+T6 (expense_anomaly): Flags expenses exceeding historical average by a multiplier (default 2.0).
+T7 (top_n_customers): Orders customers by revenue. Needs limit 'n' and 'order'.
+T8 (category_revenue): Revenue broken down by product categories.
+T9 (vendor_invoices): Retrieves vendor invoices filtered by vendor_id and payment_status.
+T10 (top_n_products): Top N products by units sold or revenue. Needs limit 'n' and 'order'.
+
+Current Date: {current_date}
+User Query: {query}
+Extracted Params (from intent classifier): {params}
+
+Return the matching template ID (e.g., "T1") and map the parameters.
+If a parameter is not mentioned, return None. For dates, use the format YYYY-MM-DD.
+"""
+
+TEMPLATES = {
+    "T1": text("""
+        SELECT SUM(total_amount) as total_revenue
+        FROM invoices
+        WHERE type ILIKE 'sales'
+          AND invoice_date >= :start_date
+          AND invoice_date <= :end_date
+    """),
+    
+    "T2": text("""
+        SELECT DATE_TRUNC('month', invoice_date) as period, SUM(total_amount) as revenue
+        FROM invoices
+        WHERE type ILIKE 'sales'
+          AND invoice_date >= :start_date
+          AND invoice_date <= :end_date
+        GROUP BY period
+        ORDER BY period ASC
+    """),
+    
+    "T3": text("""
+        SELECT 
+            (SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE type ILIKE 'sales' AND invoice_date BETWEEN :start_date AND :end_date) as total_sales,
+            (SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE type ILIKE 'purchase' AND invoice_date BETWEEN :start_date AND :end_date) as total_purchases,
+            ((SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE type ILIKE 'sales' AND invoice_date BETWEEN :start_date AND :end_date) - 
+             (SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE type ILIKE 'purchase' AND invoice_date BETWEEN :start_date AND :end_date)) as net_income
+    """),
+
+    "T4": text("""
+        SELECT 
+            c.name as customer_name,
+            SUM(CASE WHEN i.due_date >= CAST(:as_of_date AS timestamp) - INTERVAL '30 days' THEN i.total_amount ELSE 0 END) as "0_30_days",
+            SUM(CASE WHEN i.due_date >= CAST(:as_of_date AS timestamp) - INTERVAL '60 days' AND i.due_date < CAST(:as_of_date AS timestamp) - INTERVAL '30 days' THEN i.total_amount ELSE 0 END) as "30_60_days",
+            SUM(CASE WHEN i.due_date >= CAST(:as_of_date AS timestamp) - INTERVAL '90 days' AND i.due_date < CAST(:as_of_date AS timestamp) - INTERVAL '60 days' THEN i.total_amount ELSE 0 END) as "60_90_days",
+            SUM(CASE WHEN i.due_date < CAST(:as_of_date AS timestamp) - INTERVAL '90 days' THEN i.total_amount ELSE 0 END) as "90_plus_days",
+            SUM(i.total_amount) as total_overdue
+        FROM invoices i
+        JOIN customers c ON i.customer_id = c.id
+        WHERE i.type ILIKE 'sales' 
+          AND i.payment_status ILIKE ANY (ARRAY['unpaid', 'overdue', 'partial'])
+          AND i.due_date < CAST(:as_of_date AS timestamp)
+        GROUP BY c.id, c.name
+        HAVING SUM(i.total_amount) > 0
+        ORDER BY total_overdue DESC
+    """),
+
+    "T5": text("""
+        SELECT SUM(tax_amount) as total_vat
+        FROM invoices
+        WHERE invoice_date BETWEEN :start_date AND :end_date
+    """),
+
+    "T6": text("""
+        WITH historical_avg AS (
+            SELECT category, AVG(amount) as avg_amount
+            FROM transactions
+            WHERE type ILIKE 'expense'
+            GROUP BY category
+        )
+        SELECT t.id, t.category, t.amount, t.transaction_date, h.avg_amount
+        FROM transactions t
+        JOIN historical_avg h ON t.category = h.category
+        WHERE t.type ILIKE 'expense'
+          AND t.amount > (h.avg_amount * :multiplier)
+        ORDER BY t.amount DESC
+    """),
+
+    "T7": text("""
+        SELECT c.name, SUM(i.total_amount) as total_revenue
+        FROM invoices i
+        JOIN customers c ON i.customer_id = c.id
+        WHERE i.type ILIKE 'sales'
+        GROUP BY c.id, c.name
+        ORDER BY total_revenue {order}
+        LIMIT :n
+    """),
+
+    "T8": text("""
+        SELECT p.category, SUM(ii.total_price) as category_revenue
+        FROM invoice_items ii
+        JOIN invoices i ON ii.invoice_id = i.id
+        JOIN products p ON ii.product_id = p.id
+        WHERE i.type ILIKE 'sales'
+          AND i.invoice_date BETWEEN :start_date AND :end_date
+        GROUP BY p.category
+        ORDER BY category_revenue DESC
+    """),
+
+    "T9": text("""
+        SELECT i.display_id, i.invoice_date, i.total_amount, i.payment_status, v.name as vendor_name
+        FROM invoices i
+        JOIN vendors v ON i.vendor_id = v.id
+        WHERE i.type ILIKE 'purchase'
+          AND (v.display_id = :vendor_id OR v.name ILIKE '%' || :vendor_id || '%' OR :vendor_id IS NULL)
+          AND (i.payment_status ILIKE :payment_status OR :payment_status IS NULL)
+          AND (i.invoice_date BETWEEN :start_date AND :end_date)
+        ORDER BY i.invoice_date DESC
+    """),
+
+    "T10": text("""
+        SELECT
+            p.name, p.category,
+            SUM(ii.quantity)    AS total_units,
+            SUM(ii.total_price) AS total_revenue
+        FROM invoice_items ii
+        JOIN invoices inv ON inv.id = ii.invoice_id
+        JOIN products  p  ON p.id  = ii.product_id
+        WHERE inv.type ILIKE 'sales'
+          AND inv.invoice_date BETWEEN :start_date AND :end_date
+        GROUP BY p.id, p.name, p.category
+        ORDER BY total_revenue {order}
+        LIMIT :n
+    """)
+}
+
+def validate_sql(query_str: str) -> bool:
+    """Validation layer: Ensure AST is purely SELECT."""
+    if not SQLGLOT_AVAILABLE:
+        upper_q = query_str.upper()
+        if any(x in upper_q for x in ["INSERT ", "UPDATE ", "DELETE ", "DROP ", "ALTER ", "TRUNCATE "]):
+            return False
+        return True
+        
+    try:
+        parsed = sqlglot.parse(query_str)
+        for stmt in parsed:
+            if not isinstance(stmt, exp.Select):
+                return False
+        return True
+    except Exception as e:
+        logger.error("SQL parsing failed", error=str(e))
+        return False
+
+async def db_query_tool(state: M1State) -> dict:
+    """Executes the exact requested dynamic SQL template on the read-only DB."""
+    query = state.get("query", "")
+    extracted_params = state.get("extracted_params", {})
+    
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    prompt = TEMPLATE_PROMPT.format(
+        current_date=current_date, 
+        query=query, 
+        params=json.dumps(extracted_params, ensure_ascii=False)
+    )
+    
+    # Use LLM to classify template and format parameters
+    selector = llm_fast.with_structured_output(TemplateSelection, method="function_calling")
+    try:
+        selection: TemplateSelection = await selector.ainvoke(prompt)
+    except Exception as e:
+        logger.error("LLM template selection failed", error=str(e))
+        return {"error": "Failed to map query to a valid template."}
+        
+    tid = selection.template_id if selection.template_id in TEMPLATES else "T1"
+    
+    # Defaulting dates safely and parsing to datetime objects for asyncpg
+    start_dt_str = selection.start_date or "2000-01-01"
+    end_dt_str = selection.end_date or "2100-01-01"
+    as_of_str = selection.as_of_date or current_date
+    
+    def parse_date(d_str: str):
+        try:
+            return datetime.strptime(d_str, "%Y-%m-%d").date()
+        except ValueError:
+            return datetime.now().date()
+            
+    start_dt = parse_date(start_dt_str)
+    end_dt = parse_date(end_dt_str)
+    as_of = parse_date(as_of_str)
+    
+    # Secure dynamic injection for order
+    order_clause = "ASC" if selection.order.upper() == "ASC" else "DESC"
+    
+    sql_text = TEMPLATES[tid]
+    rendered_sql_str = sql_text.text.format(order=order_clause)
+    
+    if not validate_sql(rendered_sql_str):
+        return {"error": "Query validation failed. Harmful SQL detected.", "raw_data": []}
+    
+    final_sql = text(rendered_sql_str)
+    
+    params = {
+        "start_date": start_dt,
+        "end_date": end_dt,
+        "as_of_date": as_of,
+        "vendor_id": selection.vendor_id,
+        "payment_status": selection.payment_status,
+        "n": selection.n,
+        "multiplier": selection.multiplier
+    }
+
+    results = []
+    try:
+        async with get_readonly_session() as session:
+            result = await session.execute(final_sql, params)
+            rows = result.mappings().fetchall()
+            # Convert rows (asyncpg/sqlalchemy RowMappings) to list of pure dicts
+            results = [dict(r) for r in rows]
+            
+            # Format datetime/date objects to strings for JSON serialization downstream
+            for r in results:
+                for k, v in r.items():
+                    if isinstance(v, datetime):
+                        r[k] = v.isoformat()
+                    elif hasattr(v, "isoformat"):
+                        r[k] = v.isoformat()
+                        
+    except Exception as e:
+        logger.error("DB Execution failed", error=str(e), template=tid)
+        return {
+            "error": f"Database error: {str(e)}",
+            "raw_data": []
+        }
+
+    return {
+        "raw_data": results,
+        "extracted_params": {
+            **extracted_params,
+            "applied_template": tid,
+            "db_params": params
+        }
+    }
