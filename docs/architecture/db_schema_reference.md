@@ -1,15 +1,16 @@
 # Database Schema Reference — AERIE
 
 > **Auto-generated** — لا تعدّل يدوياً. شغّل `scripts/verify_connections.py` لتحديث.
-> **Generated at:** 2026-06-14 19:01:35
+> **Generated at:** 2026-06-14 21:21:23
 > **Source:** Supabase (public schema)
-> **Total tables:** 13
+> **Total tables:** 14
 
 ---
 
 ## Table of Contents
 
 - [audit_log](#audit-log)
+- [conversations](#conversations)
 - [customer_interactions](#customer-interactions)
 - [customers](#customers)
 - [inventory](#inventory)
@@ -38,6 +39,26 @@
 | `details` | `jsonb` | YES | `` |  |
 | `performed_by` | `varchar(100)` | YES | `` |  |
 | `created_at` | `timestamptz` | YES | `now()` |  |
+
+---
+
+## `conversations`
+
+**Type:** BASE TABLE | **Rows:** 0 | **PK:** `id`
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| `id` | `uuid` | NO | `gen_random_uuid()` | 🔑 PK |
+| `session_id` | `uuid` | NO | `` |  |
+| `role` | `varchar(20)` | NO | `` |  |
+| `content` | `text` | NO | `` |  |
+| `metadata` | `jsonb` | YES | `'{}'::jsonb` |  |
+| `created_at` | `timestamptz` | YES | `now()` |  |
+
+**Indexes:**
+
+- `idx_conversations_session`: `CREATE INDEX idx_conversations_session ON public.conversations USING btree (session_id)`
+- `idx_conversations_created`: `CREATE INDEX idx_conversations_created ON public.conversations USING btree (session_id, created_at)`
 
 ---
 

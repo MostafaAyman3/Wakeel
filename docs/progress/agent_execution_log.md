@@ -263,6 +263,18 @@ Result: SUCCESS — M1 Sprint 1 COMPLETE
 
 ---
 
+## Step 17
+
+Time: 2026-06-14
+Action: Created `conversations` table in Supabase via `001_create_conversations.sql`
+Reason: Sprint 6 multi-turn requirement
+Files: 
+- docs/architecture/db_schema_reference.md (regenerated)
+- docs/architecture/db_schema_reference.json (regenerated)
+Result: SUCCESS
+
+---
+
 ## Remaining Work (for implementation phase)
 
 The following are NOT architecture tasks — they are implementation tasks for the development team:
