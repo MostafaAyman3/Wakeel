@@ -24,12 +24,17 @@ async def run_tests():
             "extracted_params": {},
             "raw_data": [],
             "data_confidence": 0.0,
-            "output_format": "text",
+            "output_format": "direct_text",
             "narrative": "",
             "final_response": {},
             "error": "",
             "needs_clarification": False,
             "clarification_message": "",
+            "user_context": {
+                "user_id": "test-user-123",
+                "role": "user",
+                "permissions": ["read"],
+            },
         }
 
     tests = [

@@ -16,8 +16,11 @@ shipping:         (tracking_id, order_id, status, carrier, location, last_update
 customer_history: (customer_id, interaction_type, issue_type, resolution, date)
 ```
 
+**البيانات الحقيقية (موجودة من M1 DB):**
+- جدول `invoices` + جدول `clients` (customer profiles المرتبطة بالفواتير)
+
 **شروط الاتساق الداخلي (إلزامية):**
-- `customer_id` في `order_status` يُطابق `customer_id` في `invoices` و`customer_history`
+- `customer_id` في `order_status` و`customer_history` يُطابق `customer_id` في `invoices` و`clients`
 - كل `order_id` في `shipping` له سجل في `order_status`
 - `customer_history` يحتوي على عميل واحد على الأقل بمشكلة متكررة (لـ Scenario 4)
 - عميل واحد على الأقل بـ order_id غير موجود (لـ Scenario 3 — Graceful Degradation)
@@ -33,6 +36,7 @@ customer_history: (customer_id, interaction_type, issue_type, resolution, date)
 ```
 customer_identifier: dict   # { type: order_id|invoice_id|customer_id, value: str }
 issue_description: str
+language: str               # "ar" | "en" — auto-detect من InputParserNode، الرد يتطابق معها
 issue_type: IssueType
 fetched_data: dict          # { invoice, order, shipping, history }
 data_completeness: float    # 0.0 → 1.0
@@ -56,7 +60,27 @@ final_response: str
   - بيانات جزئية → `data_completeness = 0.5` → flagging للـ missing fields
   - لا بيانات → `escalation_needed = true` → توجيه فوري للـ Escalation
 
-- endpoint `/support` يستقبل `{ query, identifier }` ويرجع JSON
+- endpoint `/support` يستقبل `{ query, identifier }` ويرجع JSON بالـ schema التالي:
+
+```json
+{
+  "draft_response":    "string",
+  "confidence_score":  "float (0.0 → 1.0)",
+  "confidence_label":  "High | Medium | Low",
+  "review_required":   "boolean",
+  "escalation_needed": "boolean",
+  "issue_type":        "status_inquiry | billing_dispute | shipping_issue | refund_request | general_complaint",
+  "transparency_data": {
+    "invoice":  "object | null",
+    "order":    "object | null",
+    "shipping": "object | null",
+    "history":  "array  | null"
+  },
+  "missing_fields":    "array of strings | []"
+}
+```
+
+**ملاحظة:** `transparency_data` و`confidence_label` مخصصان لـ Human Review Interface فقط — لا يُعرضان للعميل مباشرة.
 
 **المخرج:** agent يُحلّل الإدخال، يجلب البيانات، ويعرف اكتمالها
 
@@ -89,7 +113,8 @@ final_response: str
 **المدة:** 5 أيام
 
 - `ResponseGeneratorNode` (GPT-4o): يولّد مسودة رد بناءً على `issue_type` + `context`
-  - يكتب بلغة واضحة مناسبة للعميل غير التقني (عربي أو إنجليزي)
+  - لغة الرد تتطابق تلقائياً مع `language` في الـ state (عربي إذا العميل كتب عربي، إنجليزي إذا إنجليزي)
+  - يكتب بلغة واضحة مناسبة للعميل غير التقني
   - يحسب `confidence_score` (0.0 → 1.0) بناءً على اكتمال البيانات
 
 **Graceful Degradation — 3 حالات إلزامية:**
@@ -100,13 +125,18 @@ final_response: str
 | بيانات جزئية | يُقدّم ما هو متاح + "سيتواصل معك فريق الدعم خلال 24 ساعة لـ [المعلومة الناقصة]" |
 | لا بيانات | "لم نعثر على [identifier]. يُرجى التأكد من الرقم أو التواصل على [قناة الدعم]" |
 
+**نص الـ partial data template (من البلوبرنت مباشرة — يُستخدم في الـ prompt):**
+> "وجدنا فاتورتك رقم INV-890 بتاريخ 15 يناير بإجمالي 3,200 جنيه. بيانات الشحن المرتبطة غير متاحة حالياً في النظام — سيتواصل معك فريق الدعم خلال 24 ساعة لتأكيد حالة التوصيل."
+
 **Repeat Issue Detection:**
-- لو `customer_history` يحتوي نفس `issue_type` أكثر من مرتين → `escalation_needed = true` + يُولّد ملخص للحالات السابقة
+- لو `customer_history` يحتوي نفس `issue_type` أكثر من مرتين خلال آخر 180 يوم (Time Window لتفادي الـ false positives) ← `escalation_needed = true` + يُولّد ملخص للحالات السابقة
 
 **Data Confidence Indicator:** يُحسب ويُخزَّن في الـ state:
 - `confidence >= 0.8` → 🟢 High
 - `0.5 ≤ confidence < 0.8` → 🟡 Medium
 - `confidence < 0.5` → 🔴 Low
+
+**قاعدة العرض:** يظهر للموظف في واجهة المراجعة فقط — **لا يظهر للعميل مباشرة**
 
 **المخرج:** مسودة رد جاهزة + confidence score + escalation flag
 
@@ -121,9 +151,16 @@ final_response: str
 |--------|--------|
 | `issue_type == billing_dispute` | `review_required = true` (إلزامي) |
 | `issue_type == refund_request` | `review_required = true` (إلزامي) |
+| الرد يتضمن التزاماً مالياً أو وعداً بموعد | `review_required = true` (إلزامي) |
 | `confidence_score < 0.70` | `review_required = true` (إلزامي) |
 | `escalation_needed == true` | تجاوز Review → إحالة مباشرة للمشرف |
 | `issue_type == status_inquiry` | `review_required = false` (اختياري، قابل للتشغيل/الإيقاف) |
+| أسئلة المعلومات العامة عن المنتج | `review_required = false` (اختياري، قابل للتشغيل/الإيقاف) |
+
+**Auto-send:** لا يحدث تلقائياً — يشترط موافقة صريحة من الموظف حتى لو `review_required = false`
+
+**Reject & Regenerate Loop:**
+- تتم عملية الـ Reject & Regenerate بإعادة استدعاء نفس الـ endpoint (`/support`) بدلاً من إنشاء endpoint جديد، مع تمرير سياق الرفض والملاحظات (`rejection_context`) وإضافته إلى الـ graph state لتوجيه عملية التوليد الجديدة وتحسين الرد.
 
 **`EscalationNode`:**
 - يُولّد ملخص الحالة: identifier + issue_type + fetched_data + سبب الإحالة
@@ -147,7 +184,7 @@ final_response: str
 **Human Review Interface (للموظف):**
 - **Response Preview:** عرض المسودة كاملة قبل الإرسال
 - **Transparency Panel:** البيانات التي اعتمد عليها الـ agent (invoice details / order / shipping / history)
-- **Confidence Indicator:** 🟢/🟡/🔴 + نسبة مئوية
+- **Confidence Indicator:** 🟢/🟡/🔴 + نسبة مئوية — **يظهر للموظف فقط، لا للعميل**
 - **Edit Field:** تعديل نصي مباشر على المسودة
 - **3 أزرار الإجراء:**
   - ✅ موافق وإرسال
@@ -176,6 +213,25 @@ final_response: str
 - اختبار حالة الـ `review_required = false` (auto-send) مقابل `review_required = true`
 
 **المخرج:** M3 شغال end-to-end، الـ 4 scenarios تعمل، جاهز للعرض
+
+---
+
+## ما هو مؤجل (لا يُنفَّذ في MVP)
+
+من البلوبرنت section 3.3 — للرجوع إليها عند التخطيط للمراحل التالية:
+- Real-time shipping API (مع شركات شحن فعلية)
+- Email / WhatsApp channel integration
+- Sentiment analysis للعميل
+- Automated resolution بدون مراجعة بشرية
+- CRM integration كاملة
+- Customer satisfaction rating بعد الحل
+- Chat history persistence بين الجلسات
+
+## Limitations يجب الإفصاح عنها في العرض
+
+- الردود تعتمد مباشرة على اكتمال البيانات — بيانات ناقصة = رد جزئي
+- لا channel integration في MVP — الواجهة داخل المنصة فقط
+- بيانات الشحن static في mock — لا real-time tracking
 
 ---
 

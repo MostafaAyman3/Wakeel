@@ -78,12 +78,17 @@ async def handle_query(
             "extracted_params": {},
             "raw_data": [],
             "data_confidence": 0.0,
-            "output_format": "text",
+            "output_format": "direct_text",
             "narrative": "",
             "final_response": {},
             "error": "",
             "needs_clarification": False,
             "clarification_message": "",
+            "user_context": {
+                "user_id": user.user_id,
+                "role": user.role,
+                "permissions": user.permissions,
+            },
         }
 
         # ── Run the graph ─────────────────────────────────────
@@ -101,7 +106,7 @@ async def handle_query(
         )
 
         return QueryResponse(
-            format=final_response.get("format", "text"),
+            format=final_response.get("format", "direct_text"),
             data=final_response.get("data"),
             chart_config=final_response.get("chart_config"),
             narrative=final_response.get("narrative"),

@@ -21,7 +21,7 @@ def _build_stub_response(state: M1State, pending_sprint: int) -> dict:
     return {
         "raw_data": [],
         "final_response": {
-            "format": "text",
+            "format": "direct_text",
             "data": None,
             "chart_config": None,
             "narrative": None,
