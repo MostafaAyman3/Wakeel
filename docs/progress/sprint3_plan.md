@@ -1,6 +1,5 @@
 ```
 # Sprint 3 Implementation Plan — Invoice Analysis Tool
-## النسخة النهائية المعتمدة (بعد معالجة التعارضات والـ Partial Match)
 
 > **التعديلات الهندسية النهائية:**
 > 1. استبدال الـ 4 nodes المنفصلة في Graph بـ Node واحدة (`InvoiceAnalysisToolNode`) — الـ 4 steps تشتغل كـ sequential functions داخلها.
