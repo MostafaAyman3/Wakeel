@@ -71,7 +71,7 @@ async def run_tests():
             print(f"  Language:    {language}")
             print(f"  Intent:      {actual_intent}")
             print(f"  Confidence:  {confidence}")
-            print(f"  Params:      {json.dumps(params, ensure_ascii=False, indent=2)}")
+            print(f"  Params:      {json.dumps(params, ensure_ascii=False, indent=2, default=str)}")
             print(f"  Stub:        {is_stub}")
             print(f"  Clarification: {needs_clarification}")
             if needs_clarification:

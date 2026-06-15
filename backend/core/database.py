@@ -34,6 +34,7 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_recycle=300,
     echo=settings.app_env == "development",
+    connect_args={"statement_cache_size": 0},
 )
 
 # Read-only engine — used exclusively by M1 agent queries
@@ -44,6 +45,7 @@ readonly_engine = create_async_engine(
     pool_pre_ping=True,
     pool_recycle=300,
     echo=False,
+    connect_args={"statement_cache_size": 0},
 )
 
 AsyncSessionFactory = async_sessionmaker(
