@@ -21,7 +21,7 @@ def _build_stub_response(state: M1State, pending_sprint: int) -> dict:
     return {
         "raw_data": [],
         "final_response": {
-            "format": "text",
+            "format": "direct_text",
             "data": None,
             "chart_config": None,
             "narrative": None,
@@ -37,10 +37,6 @@ def _build_stub_response(state: M1State, pending_sprint: int) -> dict:
         },
     }
 
-
-async def db_query_stub(state: M1State) -> dict:
-    """Placeholder for Sprint 2 — Dynamic Query Builder (10 templates)."""
-    return _build_stub_response(state, pending_sprint=2)
 
 
 async def invoice_analysis_stub(state: M1State) -> dict:

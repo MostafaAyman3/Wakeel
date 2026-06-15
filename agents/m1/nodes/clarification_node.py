@@ -87,7 +87,7 @@ async def clarify(state: M1State) -> dict:
         "needs_clarification": True,
         "clarification_message": clarification_msg,
         "final_response": {
-            "format": "clarification",
+            "format": "direct_text",
             "data": None,
             "chart_config": None,
             "narrative": clarification_msg,

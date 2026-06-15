@@ -24,12 +24,17 @@ async def run_tests():
             "extracted_params": {},
             "raw_data": [],
             "data_confidence": 0.0,
-            "output_format": "text",
+            "output_format": "direct_text",
             "narrative": "",
             "final_response": {},
             "error": "",
             "needs_clarification": False,
             "clarification_message": "",
+            "user_context": {
+                "user_id": "test-user-123",
+                "role": "user",
+                "permissions": ["read"],
+            },
         }
 
     tests = [
@@ -66,7 +71,7 @@ async def run_tests():
             print(f"  Language:    {language}")
             print(f"  Intent:      {actual_intent}")
             print(f"  Confidence:  {confidence}")
-            print(f"  Params:      {json.dumps(params, ensure_ascii=False, indent=2)}")
+            print(f"  Params:      {json.dumps(params, ensure_ascii=False, indent=2, default=str)}")
             print(f"  Stub:        {is_stub}")
             print(f"  Clarification: {needs_clarification}")
             if needs_clarification:

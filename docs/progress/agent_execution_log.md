@@ -275,6 +275,39 @@ Result: SUCCESS
 
 ---
 
+## Step 18
+
+Time: 2026-06-15
+Action: Aligned Sprint 0 and Sprint 1 implementation with modifications in M1_Sprints.md
+Reason: Requirement to pass user_context (user_id, role, permissions) from JWT authentication down to LangGraph StateGraph, update state types (IntentType and OutputType), and update formatting defaults to direct_text.
+Files:
+- backend/core/auth.py
+- agents/m1/schemas/m1_state.py
+- backend/api/v1/m1_query.py
+- agents/m1/nodes/clarification_node.py
+- agents/m1/nodes/validation_enrichment_node.py
+- agents/m1/nodes/stub_nodes.py
+- scripts/test_sprint1.py
+Result: SUCCESS — 9/9 verify_sprint0 checks passed and 6/6 test_sprint1 integration tests passed.
+
+---
+
+## Step 19
+
+Time: 2026-06-15
+Action: Implemented M1-Sprint 2 — Dynamic Query Builder (Templates)
+Reason: Replaces the Sprint 1 query stub with an actual SQL execution layer.
+Details:
+- Built `TemplateSelection` Pydantic model for structured LLM output mapping.
+- Added 10 pre-defined templates in raw parametrized SQL format (`T1` through `T10`).
+- Configured dynamic fallback parameters securely to prevent issues on missing intents.
+- Added security validation layer using `sqlglot` to verify AST is purely `SELECT`, with fallback string inspection.
+- Integrated `get_readonly_session` to execute the query safely against the read-only PostgreSQL role.
+- Authored integration test suite (`scripts/test_sprint2.py`) calling `db_query_tool` natively with mocked M1State structures testing T1, T4, T6, T10, and malicious SQL param injection.
+Result: SUCCESS — LangGraph updated and `db_query_tool.py` implemented safely.
+
+---
+
 ## Remaining Work (for implementation phase)
 
 The following are NOT architecture tasks — they are implementation tasks for the development team:
@@ -300,9 +333,10 @@ The following are NOT architecture tasks — they are implementation tasks for t
 - [x] **Sprint 1 COMPLETE** ✅
 
 ### M1 — Sprint 2
-- [ ] Implement 10 SQL query templates in db_query_tool.py
-- [ ] Implement SQL Validation Layer (AST parser, SELECT-only guard)
-- [ ] Test all templates with Arabic + English queries
+- [x] Implement 10 SQL query templates in db_query_tool.py
+- [x] Implement SQL Validation Layer (AST parser, SELECT-only guard)
+- [x] Test all templates with Arabic + English queries
+- [x] **Sprint 2 COMPLETE** ✅
 
 ### M1 — Sprint 3
 - [ ] Implement invoice sub-pipeline (4 nodes)
