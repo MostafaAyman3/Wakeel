@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
@@ -30,6 +30,7 @@ class TokenPayload(BaseModel):
     sub: str                  # user_id
     email: str
     role: str = "user"
+    permissions: list[str] = Field(default_factory=lambda: ["read"])
     exp: datetime
 
 
@@ -37,6 +38,7 @@ class UserContext(BaseModel):
     user_id: str
     email: str
     role: str
+    permissions: list[str] = Field(default_factory=lambda: ["read"])
 
 
 def create_access_token(
@@ -120,4 +122,5 @@ async def get_current_user(
         user_id=payload.sub,
         email=payload.email,
         role=payload.role,
+        permissions=payload.permissions,
     )

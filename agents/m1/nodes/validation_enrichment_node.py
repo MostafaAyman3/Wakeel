@@ -41,7 +41,7 @@ async def validate_and_enrich(state: M1State) -> dict:
     return {
         "data_confidence": data_confidence,
         "final_response": {
-            "format": "text",
+            "format": "direct_text",
             "data": raw_data or None,
             "chart_config": None,
             "narrative": f"Query processed. Intent: {intent}.",

@@ -275,6 +275,23 @@ Result: SUCCESS
 
 ---
 
+## Step 18
+
+Time: 2026-06-15
+Action: Aligned Sprint 0 and Sprint 1 implementation with modifications in M1_Sprints.md
+Reason: Requirement to pass user_context (user_id, role, permissions) from JWT authentication down to LangGraph StateGraph, update state types (IntentType and OutputType), and update formatting defaults to direct_text.
+Files:
+- backend/core/auth.py
+- agents/m1/schemas/m1_state.py
+- backend/api/v1/m1_query.py
+- agents/m1/nodes/clarification_node.py
+- agents/m1/nodes/validation_enrichment_node.py
+- agents/m1/nodes/stub_nodes.py
+- scripts/test_sprint1.py
+Result: SUCCESS — 9/9 verify_sprint0 checks passed and 6/6 test_sprint1 integration tests passed.
+
+---
+
 ## Remaining Work (for implementation phase)
 
 The following are NOT architecture tasks — they are implementation tasks for the development team:
