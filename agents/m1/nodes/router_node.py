@@ -13,11 +13,11 @@ from agents.m1.schemas.m1_state import M1State
 
 
 # Map intents to the next node name in the graph.
-# Sprint 1 stubs will be swapped for real tool nodes in later sprints.
+# Sprint 3: invoice_analysis_stub → invoice_analysis_tool (real implementation)
 ROUTING_MAP: dict[str, str] = {
     "financial_query":      "db_query_tool",
     "operational_query":    "db_query_tool",
-    "invoice_analysis":     "invoice_analysis_stub",
+    "invoice_analysis":     "invoice_analysis_tool",   # Sprint 3 — real node
     "tax_reasoning":        "tax_rag_stub",
     "clarification_needed": "clarification",
 }
