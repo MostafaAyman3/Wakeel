@@ -1,14 +1,16 @@
 """
-Stub Nodes — valid-state placeholder nodes for Sprint 2 / 3 / 4 tools.
+Stub Nodes — valid-state placeholder nodes for Sprint 4 tools.
 
 Each stub returns a well-formed state dict that matches M1State,
 including metadata with ``stub: true`` so downstream code and tests
 can distinguish stub output from real tool output.
 
 These will be replaced by actual implementations:
-  • db_query_stub         → Sprint 2 (Dynamic Query Builder)
-  • invoice_analysis_stub → Sprint 3 (Invoice Analysis Tool)
-  • tax_rag_stub          → Sprint 4 (Tax RAG)
+  • tax_rag_stub  → Sprint 4 (Tax RAG)
+
+Sprint 3 Note:
+  invoice_analysis_stub has been REMOVED — replaced by the real
+  InvoiceAnalysisToolNode in agents/m1/nodes/invoice_analysis_tool_node.py
 """
 
 from __future__ import annotations
@@ -36,12 +38,6 @@ def _build_stub_response(state: M1State, pending_sprint: int) -> dict:
             },
         },
     }
-
-
-
-async def invoice_analysis_stub(state: M1State) -> dict:
-    """Placeholder for Sprint 3 — Invoice Analysis Tool (4-node sub-pipeline)."""
-    return _build_stub_response(state, pending_sprint=3)
 
 
 async def tax_rag_stub(state: M1State) -> dict:

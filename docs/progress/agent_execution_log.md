@@ -339,9 +339,15 @@ The following are NOT architecture tasks — they are implementation tasks for t
 - [x] **Sprint 2 COMPLETE** ✅
 
 ### M1 — Sprint 3
-- [ ] Implement invoice sub-pipeline (4 nodes)
-- [ ] Implement invoice_analysis_tool.py
-- [ ] Pattern detection: late payments, vendor price increases, recurring costs
+- [x] Implement invoice sub-pipeline (4 functions inside InvoiceAnalysisToolNode)
+- [x] Implement invoice_analysis_tool_node.py (single node with 4 sequential private methods)
+- [x] Pattern detection: late payments, vendor price increases, recurring costs, concentration risk
+- [x] 8 SQL templates in invoice_templates.py (partial vendor name LIKE matching)
+- [x] Bilingual prompts in agents/prompts/invoice_analysis.py
+- [x] Wire real node in m1_graph.py, remove invoice_analysis_stub
+- [x] Create scripts/test_sprint3.py — 14 test cases
+- [x] **Sprint 3 COMPLETE** ✅
+
 
 ### M1 — Sprint 4
 - [ ] Load 3-5 tax rule documents into data/tax_knowledge_base/
@@ -395,3 +401,40 @@ The following are NOT architecture tasks — they are implementation tasks for t
 5. **pgvector** — required from Sprint 0 (M1). ✅ Already enabled (v0.8.0).
 6. **Supabase Direct Connection blocked** — port 5432 times out on free tier (IPv6 only). Use Shared Pooler (port 6543) for all connections.
 7. **Table name mismatch** — `shipments` and `customer_interactions` in DB vs `shipping` and `customer_history` in sprint spec. Use actual DB names in all queries.
+
+---
+
+## Step 20
+
+Time: 2026-06-16
+Action: Implemented M1-Sprint 3 — Invoice Analysis Tool (InvoiceAnalysisToolNode)
+Reason: Sprint 3 deliverable — replace invoice_analysis_stub with a real 4-function node that handles the full invoice sub-pipeline.
+Files created/updated:
+- agents/m1/tools/invoice_templates.py — 8 SQL templates (SINGLE_INVOICE_DETAIL, INVOICE_TOTALS_BY_DATE, INVOICE_VAT_SUMMARY, TOP_VENDORS_BY_COST, OVERDUE_INVOICES, VENDOR_COST_OVER_TIME, INVOICE_TREND_ANALYSIS, RECURRING_EXPENSE_ANALYSIS) with LIKE partial vendor matching
+- agents/prompts/invoice_analysis.py — bilingual prompts (INVOICE_PARAM_EXTRACTION_PROMPT for GPT-4o-mini, INVOICE_NARRATIVE_PROMPT for GPT-4o)
+- agents/m1/nodes/invoice_analysis_tool_node.py — InvoiceAnalysisToolNode class with 4 sequential private methods:
+  - _extract_invoice_params() — GPT-4o-mini extraction with extraction_confidence
+  - _build_invoice_query() — Pure Python template selection + vendor_name % wrapping for LIKE
+  - _execute_invoice_query() — AST-validated, read-only DB, LIMIT 500
+  - _analyze_invoice_data() — Two-pass: Python metrics + GPT-4o narrative
+- agents/m1/graphs/m1_graph.py — wired invoice_analysis_tool (real node), removed invoice_analysis_stub
+- agents/m1/nodes/router_node.py — updated ROUTING_MAP: invoice_analysis → invoice_analysis_tool
+- agents/m1/nodes/stub_nodes.py — removed invoice_analysis_stub (kept tax_rag_stub for Sprint 4)
+- scripts/test_sprint3.py — 14 integration test cases (TC-01 through TC-14)
+Key design decisions implemented:
+- Single node (not 4 graph nodes) — sequential methods inside InvoiceAnalysisToolNode.__call__
+- data_confidence computed AFTER query execution (separate from extraction_confidence in metrics)
+- vendor_name partial match: _build_invoice_query wraps with %..% and sets requires_vendor_lookup=True
+- domain field at root level of extracted_params (not nested in intent_details)
+- No UI components (Charts/Metric Cards) — deferred to Sprint 5
+- extraction_confidence < 0.6 → returns clarification_needed intent
+- Graceful empty result: data_confidence = 0.5 when query succeeds but returns 0 rows
+- Pattern detection constants: OVERDUE 30%/50%, PRICE_CHANGE 10%/25%, CONCENTRATION 40%/60%
+- AST SQL validation reused from Sprint 2 (sqlglot with string-inspection fallback)
+- Whitelist: only invoices, invoice_items, vendors tables allowed
+Verification:
+- All 5 new/modified .py files pass syntax check ✅
+- test_sprint3.py created with 14 cases ✅
+- Graph compiles successfully ✅
+Result: SUCCESS — M1 Sprint 3 COMPLETE
+
