@@ -26,6 +26,9 @@ from backend.core.config import get_settings
 
 settings = get_settings()
 
+# asyncpg connection args — longer timeout for Supabase SSL handshake on Windows
+_CONNECT_ARGS = {"timeout": 60, "command_timeout": 60}
+
 # Read-write engine — used by backend services and M3
 engine = create_async_engine(
     settings.database_url,
@@ -34,6 +37,7 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_recycle=300,
     echo=settings.app_env == "development",
+    connect_args=_CONNECT_ARGS,
 )
 
 # Read-only engine — used exclusively by M1 agent queries
@@ -44,6 +48,7 @@ readonly_engine = create_async_engine(
     pool_pre_ping=True,
     pool_recycle=300,
     echo=False,
+    connect_args=_CONNECT_ARGS,
 )
 
 AsyncSessionFactory = async_sessionmaker(

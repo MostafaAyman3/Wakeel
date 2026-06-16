@@ -18,7 +18,7 @@ ROUTING_MAP: dict[str, str] = {
     "financial_query":      "db_query_stub",
     "operational_query":    "db_query_stub",
     "invoice_analysis":     "invoice_analysis_stub",
-    "tax_reasoning":        "tax_rag_stub",
+    "tax_reasoning":        "tax_rag_node",
     "clarification_needed": "clarification",
 }
 

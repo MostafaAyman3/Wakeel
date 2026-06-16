@@ -1,5 +1,5 @@
 """
-M1 LangGraph StateGraph — wires all Sprint 1 nodes together.
+M1 LangGraph StateGraph — wires all Sprint 1–4 nodes together.
 
 Flow:
     START → IntentClassifier → Router (conditional)
@@ -7,7 +7,7 @@ Flow:
         ├─ financial_query       → DB Query Stub            → ValidationEnrichment → END
         ├─ operational_query     → DB Query Stub            → ValidationEnrichment → END
         ├─ invoice_analysis      → Invoice Analysis Stub    → ValidationEnrichment → END
-        └─ tax_reasoning         → Tax RAG Stub             → ValidationEnrichment → END
+        └─ tax_reasoning         → TaxRAGNode (Sprint 4)   → ValidationEnrichment → END
 
 Blueprint reference: section 2.5 — Agent Workflow
 """
@@ -21,11 +21,8 @@ from agents.m1.nodes.intent_classifier_node import classify_intent
 from agents.m1.nodes.router_node import route_by_intent
 from agents.m1.nodes.clarification_node import clarify
 from agents.m1.nodes.validation_enrichment_node import validate_and_enrich
-from agents.m1.nodes.stub_nodes import (
-    db_query_stub,
-    invoice_analysis_stub,
-    tax_rag_stub,
-)
+from agents.m1.nodes.stub_nodes import db_query_stub, invoice_analysis_stub
+from agents.m1.nodes.tax_rag_node import tax_rag_node
 
 
 def build_m1_graph():
@@ -40,7 +37,7 @@ def build_m1_graph():
     graph.add_node("clarification", clarify)
     graph.add_node("db_query_stub", db_query_stub)
     graph.add_node("invoice_analysis_stub", invoice_analysis_stub)
-    graph.add_node("tax_rag_stub", tax_rag_stub)
+    graph.add_node("tax_rag_node", tax_rag_node)
     graph.add_node("validation_enrichment", validate_and_enrich)
 
     # ── Entry point ───────────────────────────────────────────
@@ -54,17 +51,17 @@ def build_m1_graph():
             "clarification":          "clarification",
             "db_query_stub":          "db_query_stub",
             "invoice_analysis_stub":  "invoice_analysis_stub",
-            "tax_rag_stub":           "tax_rag_stub",
+            "tax_rag_node":           "tax_rag_node",
         },
     )
 
     # ── Clarification → END (no further processing needed) ───
     graph.add_edge("clarification", END)
 
-    # ── Tool stubs → Validation → END ────────────────────────
+    # ── Tool stubs + RAG node → Validation → END ─────────────
     graph.add_edge("db_query_stub", "validation_enrichment")
     graph.add_edge("invoice_analysis_stub", "validation_enrichment")
-    graph.add_edge("tax_rag_stub", "validation_enrichment")
+    graph.add_edge("tax_rag_node", "validation_enrichment")
     graph.add_edge("validation_enrichment", END)
 
     return graph.compile()
