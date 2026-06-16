@@ -26,8 +26,9 @@ from backend.core.config import get_settings
 
 settings = get_settings()
 
-# asyncpg connection args — longer timeout for Supabase SSL handshake on Windows
-_CONNECT_ARGS = {"timeout": 60, "command_timeout": 60}
+# asyncpg connection args — statement_cache_size=0 required for Supabase pgBouncer
+# (transaction mode doesn't support named prepared statements)
+_CONNECT_ARGS = {"timeout": 60, "command_timeout": 60, "statement_cache_size": 0}
 
 # Read-write engine — used by backend services and M3
 engine = create_async_engine(

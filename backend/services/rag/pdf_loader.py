@@ -1,10 +1,9 @@
 """
-PDF Loader — Arabic PDF extraction and text cleaning.
+PDF Loader — English PDF text extraction and cleaning.
 
 Responsibility:
-    - Extract text from Arabic PDFs using PyMuPDF (fitz)
-    - Fix RTL ordering issues common in Arabic PDFs
-    - Normalize Arabic characters (remove tashkeel, unify alef forms)
+    - Extract text from English PDFs using PyMuPDF (fitz)
+    - Clean whitespace and normalize line breaks
     - Parse document metadata from filename and content headers
     - Save processed text to data/tax_knowledge_base/processed/
 
@@ -14,15 +13,14 @@ Input:
 Output:
     List of ProcessedDocument dicts:
     {
-        "document_name": str,   # e.g. "قانون الضريبة على القيمة المضافة"
-        "law_number":    str,   # e.g. "القانون رقم 67 لسنة 2016"
+        "document_name": str,   # e.g. "Income Tax Law"
+        "law_number":    str,   # e.g. "Law No. 91 of 2005"
         "source_file":   str,   # original PDF filename
-        "raw_text":      str,   # full extracted + normalized text
+        "raw_text":      str,   # full extracted + cleaned text
         "pages":         int,   # page count
     }
 
-Library: PyMuPDF (fitz) — chosen for best Arabic RTL support
-NOT: pypdf, pdfminer (poor Arabic encoding handling)
+Library: PyMuPDF (fitz) — reliable cross-platform PDF extraction
 """
 
 from __future__ import annotations
@@ -31,69 +29,23 @@ import logging
 import re
 from pathlib import Path
 
-import arabic_reshaper
 import fitz  # PyMuPDF
 
 logger = logging.getLogger(__name__)
 
-# Arabic Presentation Forms: U+FE70–U+FEFF (isolated/medial/final glyph forms)
-# PDFs that use these store characters in visual order (right→left on screen
-# = left→right in memory). Both character order AND word order are reversed.
-_PRES_FORMS = re.compile(r"[ﹰ-﻿ﭐ-﷿]")
+# ── Text cleanup patterns ─────────────────────────────────────────────────────
+_MULTI_NL = re.compile(r"\n{3,}")   # 3+ consecutive newlines → 2
+_MULTI_SP = re.compile(r"[ \t]+")  # multiple spaces/tabs → single space
 
-
-def _fix_arabic_text(text: str) -> str:
-    """
-    Fix Arabic text from PDFs that store glyphs in visual (reversed) order.
-
-    Problem: these PDFs write each line's characters left-to-right in memory
-             but the characters appear right-to-left on screen — so both
-             character order and word order are reversed.
-
-    Fix (per line):
-        1. line[::-1]               — reverse character sequence → logical order
-        2. arabic_reshaper.reshape()— connect characters properly (ﺟ → ج)
-
-    Only lines containing Presentation Form characters are processed.
-    Latin / numeric lines pass through unchanged.
-    """
-    if not _PRES_FORMS.search(text):
-        return text
-
-    try:
-        lines  = text.split("\n")
-        fixed  = []
-        for line in lines:
-            if _PRES_FORMS.search(line):
-                # Step 1: reverse (visual → logical), Step 2: reshape
-                fixed.append(arabic_reshaper.reshape(line[::-1]))
-            else:
-                fixed.append(line)
-        return "\n".join(fixed)
-    except Exception as exc:
-        logger.warning("_fix_arabic_text failed: %s — using raw text", exc)
-        return text
-
-
-# ── Arabic Unicode ranges ──────────────────────────────────────────────────────
-# Full tashkeel block: Quran marks + standard diacritics + extended
-_TASHKEEL = re.compile(
-    r"[ؐ-ًؚ-ٟۖ-ۜ۟-۪ۤۧۨ-ۭ]"
-)
-_ALEF     = re.compile(r"[أإآٱ]")        # Alef with hamza / madda / wasla → bare Alef
-_TEH_MARB = re.compile(r"ة")             # Teh Marbuta → Heh
-_YEH      = re.compile(r"ى")             # Alef Maqsura → Yeh
-_MULTI_NL = re.compile(r"\n{3,}")        # 3+ consecutive newlines → 2
-_MULTI_SP = re.compile(r"[ \t]+")        # Multiple spaces/tabs → single space
-
-# ── Law number patterns (Arabic) ───────────────────────────────────────────────
+# ── English law number patterns ───────────────────────────────────────────────
 _LAW_NUM_PATTERN = re.compile(
-    r"(?:القانون|قانون)\s+رقم\s+\d+\s+لسنه\s+\d+"
-    r"|(?:القانون|قانون)\s+رقم\s+\d+\s+لسنة\s+\d+",
-    re.UNICODE,
+    r"Law\s+No\.?\s*\d+\s+(?:of|for)\s+(?:the\s+)?(?:year\s+)?\d+"
+    r"|Law\s+Number\s+\d+\s+(?:of|for)\s+\d+"
+    r"|Act\s+No\.?\s*\d+\s+of\s+\d+",
+    re.IGNORECASE,
 )
 
-# ── Structured file headers (used in manually prepared .txt exports) ───────────
+# ── Structured file headers (manually prepared .txt exports) ──────────────────
 _DOC_HEADER = re.compile(r"^DOCUMENT:\s*(.+)$", re.MULTILINE)
 _LAW_HEADER = re.compile(r"^LAW_NUMBER:\s*(.+)$", re.MULTILINE)
 
@@ -104,23 +56,14 @@ _LAW_HEADER = re.compile(r"^LAW_NUMBER:\s*(.+)$", re.MULTILINE)
 
 def load_pdf(file_path: str) -> dict:
     """
-    Extract and clean text from a single Arabic PDF file.
-
-    Uses PyMuPDF page.get_text("text", sort=True) for correct RTL reading order.
-    Each page is extracted separately then joined with double newlines.
+    Extract and clean text from a single English PDF file.
 
     Args:
         file_path: Absolute or relative path to the PDF file.
 
     Returns:
-        ProcessedDocument dict:
-        {
-            "document_name": str,
-            "law_number":    str,
-            "source_file":   str,   # just the filename, not full path
-            "raw_text":      str,   # normalized full text
-            "pages":         int,
-        }
+        ProcessedDocument dict with keys:
+        document_name, law_number, source_file, raw_text, pages.
 
     Raises:
         FileNotFoundError: If the PDF path does not exist.
@@ -141,30 +84,25 @@ def load_pdf(file_path: str) -> dict:
     pages_text: list[str] = []
 
     for page in doc:
-        # sort=True → PyMuPDF reorders text blocks top-to-bottom, left-to-right
-        # For Arabic RTL this still produces correct paragraph order per page.
         page_text = page.get_text("text", sort=True)
         if page_text.strip():
-            pages_text.append(_fix_arabic_text(page_text))
+            pages_text.append(page_text)
 
     doc.close()
 
-    raw_text       = "\n\n".join(pages_text)
-    normalized     = normalize_arabic(raw_text)
-    metadata       = extract_document_metadata(normalized, path.name)
+    raw_text  = "\n\n".join(pages_text)
+    cleaned   = clean_text(raw_text)
+    metadata  = extract_document_metadata(cleaned, path.name)
 
     result = {
         "document_name": metadata["document_name"],
         "law_number":    metadata["law_number"],
         "source_file":   path.name,
-        "raw_text":      normalized,
+        "raw_text":      cleaned,
         "pages":         len(pages_text),
     }
 
-    logger.info(
-        "  ✓ %s — %d pages, %d chars",
-        path.name, result["pages"], len(normalized),
-    )
+    logger.info("  ✓ %s — %d pages, %d chars", path.name, result["pages"], len(cleaned))
     return result
 
 
@@ -172,14 +110,11 @@ def load_all_pdfs(raw_dir: str) -> list[dict]:
     """
     Load all PDF files from the raw directory.
 
-    Iterates over *.pdf files alphabetically. Logs a warning but continues
-    if a single file fails, so one bad PDF never blocks the rest.
-
     Args:
         raw_dir: Path to data/tax_knowledge_base/raw/
 
     Returns:
-        List of ProcessedDocument dicts (one per successfully loaded PDF).
+        List of ProcessedDocument dicts.
     """
     raw_path = Path(raw_dir)
 
@@ -207,35 +142,19 @@ def load_all_pdfs(raw_dir: str) -> list[dict]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Text normalization
+# Text cleaning
 # ─────────────────────────────────────────────────────────────────────────────
 
-def normalize_arabic(text: str) -> str:
+def clean_text(text: str) -> str:
     """
-    Normalize Arabic text for consistent embedding and retrieval.
-
-    All normalization steps are also applied in query_enhancer.normalize_arabic_query()
-    so that stored chunk text and query text share the same representation.
-
-    Operations (in order):
-        1. Remove tashkeel (diacritics / Quranic marks)
-        2. Unify Alef forms: أ إ آ ٱ → ا
-        3. Unify Teh Marbuta: ة → ه
-        4. Unify Alef Maqsura: ى → ي
-        5. Collapse multiple spaces / tabs → single space
-        6. Collapse 3+ newlines → 2 newlines (preserve paragraph breaks)
-        7. Strip leading / trailing whitespace
+    Basic text cleanup: collapse whitespace and excessive blank lines.
 
     Args:
-        text: Raw Arabic text extracted from PDF.
+        text: Raw text extracted from PDF.
 
     Returns:
-        Normalized text string.
+        Cleaned text string.
     """
-    text = _TASHKEEL.sub("", text)
-    text = _ALEF.sub("ا", text)
-    text = _TEH_MARB.sub("ه", text)
-    text = _YEH.sub("ي", text)
     text = _MULTI_SP.sub(" ", text)
     text = _MULTI_NL.sub("\n\n", text)
     return text.strip()
@@ -249,24 +168,19 @@ def extract_document_metadata(text: str, filename: str) -> dict:
     """
     Parse law number and document name from text content or filename.
 
-    Priority order:
-        1. Structured headers (DOCUMENT: / LAW_NUMBER:) — manually prepared files
-        2. Law number pattern in first 600 chars of text  — "القانون رقم X لسنة Y"
+    Priority:
+        1. Structured headers (DOCUMENT: / LAW_NUMBER:)
+        2. Law number pattern in first 600 chars
         3. Law number pattern in filename
-        4. Filename stem (cleaned) as document name fallback
-
-    Args:
-        text:     Normalized extracted text from the PDF.
-        filename: Original PDF filename (e.g. "القيمة المضافة1.pdf").
+        4. Filename stem as fallback
 
     Returns:
         {"document_name": str, "law_number": str}
-        Empty strings if not found (never raises).
     """
     document_name = ""
     law_number    = ""
 
-    # ── 1. Structured DOCUMENT: / LAW_NUMBER: headers ─────────────────────────
+    # 1. Structured headers
     doc_match = _DOC_HEADER.search(text)
     if doc_match:
         document_name = doc_match.group(1).strip()
@@ -275,28 +189,25 @@ def extract_document_metadata(text: str, filename: str) -> dict:
     if law_header_match:
         law_number = law_header_match.group(1).strip()
 
-    # ── 2. Law number from first 600 chars of text ─────────────────────────────
+    # 2. Law number from first 600 chars of text
     if not law_number:
         law_match = _LAW_NUM_PATTERN.search(text[:600])
         if law_match:
             law_number = law_match.group(0).strip()
 
-    # ── 3. Law number from filename ────────────────────────────────────────────
+    # 3. Law number from filename
     if not law_number:
         law_match = _LAW_NUM_PATTERN.search(filename)
         if law_match:
             law_number = law_match.group(0).strip()
 
-    # ── 4. Document name from filename (fallback) ──────────────────────────────
+    # 4. Filename fallback
     if not document_name:
-        stem = Path(filename).stem              # strip .pdf
-        stem = re.sub(r"\s*\d+$", "", stem)    # strip trailing digits: "VAT 2" → "VAT"
+        stem = Path(filename).stem
+        stem = re.sub(r"\s*\d+$", "", stem)
         document_name = stem.strip()
 
-    return {
-        "document_name": document_name,
-        "law_number":    law_number,
-    }
+    return {"document_name": document_name, "law_number": law_number}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -305,22 +216,18 @@ def extract_document_metadata(text: str, filename: str) -> dict:
 
 def save_processed_text(document: dict, processed_dir: str) -> str:
     """
-    Save a ProcessedDocument's normalized text to processed/ as a .txt file.
+    Save a ProcessedDocument's cleaned text to processed/ as a .txt file.
 
     File format:
         DOCUMENT: <document_name>
         LAW_NUMBER: <law_number>
         SOURCE_FILE: <source_file>
         PAGES: <pages>
-        ────────────────────────────────────────────────────────────
-        <normalized text body>
-
-    The metadata header is written so that if the .txt file is ever
-    re-loaded (e.g. for re-chunking without re-extracting the PDF),
-    extract_document_metadata() can parse it via the DOCUMENT: pattern.
+        ──────────────────────────────────────────────────────────
+        <cleaned text body>
 
     Args:
-        document:      ProcessedDocument dict (must have all 5 keys).
+        document:      ProcessedDocument dict.
         processed_dir: Path to data/tax_knowledge_base/processed/
 
     Returns:
@@ -329,7 +236,7 @@ def save_processed_text(document: dict, processed_dir: str) -> str:
     processed_path = Path(processed_dir)
     processed_path.mkdir(parents=True, exist_ok=True)
 
-    stem        = Path(document["source_file"]).stem   # filename without .pdf
+    stem        = Path(document["source_file"]).stem
     output_file = processed_path / f"{stem}.txt"
 
     header = (
@@ -341,6 +248,5 @@ def save_processed_text(document: dict, processed_dir: str) -> str:
     )
 
     output_file.write_text(header + document["raw_text"], encoding="utf-8")
-
     logger.info("Saved → %s (%d chars)", output_file.name, len(document["raw_text"]))
     return str(output_file)

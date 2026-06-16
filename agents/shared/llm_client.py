@@ -28,10 +28,10 @@ settings = get_settings()
 llm_primary = ChatOpenAI(
     model=settings.openai_model_primary,
     api_key=settings.openai_api_key,
-    temperature=0.1,       # Low temperature for factual, deterministic responses
-    max_tokens=2048,
+    temperature=0.1,
     timeout=60,
     max_retries=2,
+    model_kwargs={"max_completion_tokens": 2048},
 )
 
 # Fast model — used for: intent classification, issue classification,

@@ -2,31 +2,24 @@
 Tax RAG Tool — Main Orchestrator for Tax Knowledge Retrieval and Generation.
 
 Pipeline (end-to-end):
-    1. normalize_arabic_query()   — clean Arabic query
-    2. enhance_query()            — HyDE + multi-query → list of embeddings
-    3. retrieve_multi()           — pgvector cosine search, deduplication
-    4. Out-of-scope guard         — if no chunks pass threshold → refuse politely
-    5. rerank_chunks()            — LLM scores chunks by legal relevance → top 3
-    6. _build_context()           — format chunks with article/law citation
-    7. llm_primary.ainvoke()      — GPT-4o generates answer from context only
-    8. Return structured result   — answer + legal_reference + confidence + disclaimer
+    1. enhance_query()     — multi-query → list of embeddings (no HyDE)
+    2. retrieve_multi()    — pgvector cosine search, deduplication
+    3. Out-of-scope guard  — if no chunks pass threshold → refuse politely
+    4. rerank_chunks()     — LLM scores chunks by legal relevance → top 3
+    5. _build_context()    — format chunks with article/law citation
+    6. llm_primary.ainvoke() — GPT-4o generates answer from context only
+    7. _is_no_answer()     — detect if GPT-4o couldn't find a direct answer
+    8. Return structured result
 
 Result schema:
     {
-        "answer":          str,          # GPT-4o generated answer
-        "legal_reference": {             # From top reranked chunk (or None)
-            "law":      str,             # "القانون رقم 67 لسنة 2016"
-            "article":  str,             # "مادة 3"
-            "document": str,             # document_name
-        } | None,
-        "confidence":      float,        # top rerank_score normalised to [0.0, 1.0]
-        "sources":         list[str],    # chunk_ids used as context
-        "disclaimer":      str,          # ALWAYS included — mandatory
-        "out_of_scope":    bool,         # True if no relevant chunks found
+        "answer":          str,
+        "legal_reference": {"law": str, "article": str, "document": str} | None,
+        "confidence":      float,        # [0.0, 1.0]
+        "sources":         list[str],    # chunk_ids used
+        "disclaimer":      str,          # ALWAYS included
+        "out_of_scope":    bool,
     }
-
-DISCLAIMER (mandatory, always appended):
-    "توجيه استرشادي — استشر مستشاراً ضريبياً للقرارات الرسمية"
 """
 
 from __future__ import annotations
@@ -37,7 +30,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from agents.shared.llm_client import llm_primary
 from backend.core.database import get_readonly_session
-from backend.services.rag.query_enhancer import enhance_query, normalize_arabic_query
+from backend.services.rag.query_enhancer import enhance_query
 from backend.services.rag.reranker import rerank_chunks
 from backend.services.rag.retriever import retrieve_multi
 
@@ -45,70 +38,74 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
-DISCLAIMER = "توجيه استرشادي — استشر مستشاراً ضريبياً للقرارات الرسمية"
+DISCLAIMER = "Advisory guidance only — consult a qualified tax advisor for official decisions."
 
 _TOP_K_RETRIEVAL = 5     # chunks per embedding query (before dedup + rerank)
 _TOP_N_RERANK    = 3     # final chunks kept after LLM reranking
-_THRESHOLD       = 0.75  # minimum cosine similarity to include a chunk
+_THRESHOLD       = 0.50  # minimum cosine similarity to include a chunk
 
-_OUT_OF_SCOPE_AR = (
-    "عذراً، لم أجد في قاعدة المعرفة الضريبية ما يُجيب على هذا السؤال بشكل موثوق. "
-    "يُرجى استشارة مستشار ضريبي مختص للحصول على إجابة دقيقة."
-)
-_OUT_OF_SCOPE_EN = (
+_OUT_OF_SCOPE = (
     "I'm sorry, I could not find a reliable answer to this question "
-    "in the available tax knowledge base. Please consult a qualified tax advisor."
+    "in the available tax knowledge base. "
+    "Please consult a qualified tax advisor for an accurate answer."
 )
 
 # ── LLM prompts ────────────────────────────────────────────────────────────────
 
-_GENERATION_SYSTEM = """أنت مستشار ضريبي قانوني متخصص في القانون الضريبي المصري.
-مهمتك: الإجابة على الأسئلة الضريبية بدقة واحترافية مستنداً فقط إلى النصوص القانونية المُقدَّمة.
+_GENERATION_SYSTEM = """You are a specialized legal tax advisor in Egyptian tax law.
+Your task: answer tax questions accurately and professionally based ONLY on the provided legal texts.
 
-قواعد صارمة:
-1. أجب فقط مما هو موجود في السياق القانوني المُعطى — لا تخمّن ولا تضف معلومات من خارجه
-2. اذكر رقم المادة والقانون عند الاستشهاد (مثال: "وفقاً للمادة 3 من القانون رقم 67 لسنة 2016")
-3. إذا كان السؤال خارج نطاق النصوص المتاحة، قل ذلك صراحةً
-4. أجب بنفس لغة السؤال (عربي ← عربي / إنجليزي ← إنجليزي)
-5. كن موجزاً ودقيقاً — لا تُطوّل بلا فائدة"""
+Strict rules:
+1. Answer only from the legal context provided — do not guess or add outside information
+2. Cite the article and law when referencing a provision (e.g. "According to Article 3 of Law No. 91 of 2005")
+3. If the retrieved texts do not contain a direct answer, do NOT infer absence of a legal ruling — say only: "I could not find a direct answer in the retrieved legal texts."
+4. Be concise and precise"""
 
-_GENERATION_HUMAN = """السياق القانوني:
+_GENERATION_HUMAN = """Legal context:
 {context}
 
-السؤال: {query}
+Question: {query}
 
-أجب بشكل قانوني دقيق مستنداً إلى النص أعلاه فقط."""
+Provide an accurate legal answer based solely on the above context."""
+
+# Phrases that indicate GPT-4o couldn't find a direct answer in the retrieved context
+_NO_ANSWER_PHRASES = [
+    "i could not find a direct answer",
+    "could not find a direct answer",
+    "no direct answer",
+    "not addressed in the retrieved",
+    "not covered in the retrieved",
+    "retrieved texts do not contain",
+]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Public API
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def run_tax_rag(query: str, language: str = "ar") -> dict:
+async def run_tax_rag(query: str, language: str = "en") -> dict:
     """
     Full Tax RAG pipeline: enhance → retrieve → rerank → generate.
 
     Args:
-        query:    User's tax question (Arabic or English, raw input).
-        language: "ar" | "en" — controls variation direction in query_enhancer.
+        query:    User's tax question (English).
+        language: "en" (reserved for future bilingual support).
 
     Returns:
-        TaxRAGResult dict (see module docstring for full schema).
-        "disclaimer" is always present regardless of out_of_scope.
+        TaxRAGResult dict — "disclaimer" is always present.
     """
-    normalized = normalize_arabic_query(query)
-    logger.info("tax_rag_tool.run_tax_rag: query='%s…' language=%s", query[:60], language)
+    logger.info("tax_rag_tool.run_tax_rag: query='%s…'", query[:60])
 
     # ── Step 1: Query enhancement → multiple embeddings ───────────────────
     try:
-        query_embeddings = await enhance_query(normalized or query, language)
+        query_embeddings = await enhance_query(query.strip(), language)
     except Exception as exc:
         logger.error("enhance_query failed: %s", exc)
         query_embeddings = []
 
     if not query_embeddings:
         logger.error("No embeddings produced — returning out_of_scope")
-        return _out_of_scope_result(language)
+        return _out_of_scope_result()
 
     # ── Step 2: Retrieve from pgvector ────────────────────────────────────
     try:
@@ -121,14 +118,14 @@ async def run_tax_rag(query: str, language: str = "ar") -> dict:
             )
     except Exception as exc:
         logger.error("retrieve_multi failed: %s", exc)
-        return _out_of_scope_result(language)
+        return _out_of_scope_result()
 
     logger.debug("Retrieved %d deduplicated chunks above threshold", len(chunks))
 
     # ── Step 3: Out-of-scope guard ────────────────────────────────────────
     if not chunks:
         logger.info("No chunks above similarity threshold — out of scope")
-        return _out_of_scope_result(language)
+        return _out_of_scope_result()
 
     # ── Step 4: LLM reranking → top N chunks ─────────────────────────────
     try:
@@ -140,7 +137,7 @@ async def run_tax_rag(query: str, language: str = "ar") -> dict:
             chunk["rerank_score"] = chunk.get("similarity", 0.0)
 
     if not top_chunks:
-        return _out_of_scope_result(language)
+        return _out_of_scope_result()
 
     # ── Step 5: Build context string ──────────────────────────────────────
     context = _build_context(top_chunks)
@@ -151,17 +148,24 @@ async def run_tax_rag(query: str, language: str = "ar") -> dict:
         answer = await _generate_answer(query, context)
     except Exception as exc:
         logger.error("GPT-4o generation failed: %s", exc)
-        answer = (
-            "حدث خطأ أثناء توليد الإجابة. يُرجى المحاولة مرة أخرى."
-            if language == "ar"
-            else "An error occurred while generating the answer. Please try again."
-        )
+        answer = "An error occurred while generating the answer. Please try again."
 
-    # ── Step 7: Assemble result ───────────────────────────────────────────
+    # ── Step 7: Detect "no direct answer" from GPT-4o ────────────────────
+    if _is_no_answer(answer):
+        logger.info("GPT-4o indicated no direct answer — marking out_of_scope")
+        return {
+            "answer":          answer,
+            "legal_reference": None,
+            "confidence":      0.0,
+            "sources":         sources,
+            "disclaimer":      DISCLAIMER,
+            "out_of_scope":    True,
+        }
+
+    # ── Step 8: Assemble result ───────────────────────────────────────────
     top       = top_chunks[0]
     legal_ref = _build_legal_reference(top)
     raw_score = top.get("rerank_score", top.get("similarity", 0.0))
-    # rerank_score is 0-10 (LLM score); similarity is 0-1 (cosine) — normalise both to [0,1]
     confidence = round(raw_score / 10.0 if raw_score > 1.0 else float(raw_score), 3)
 
     result = {
@@ -174,7 +178,7 @@ async def run_tax_rag(query: str, language: str = "ar") -> dict:
     }
 
     logger.info(
-        "tax_rag_tool: done | confidence=%.3f | chunks_used=%d | top=%s",
+        "tax_rag_tool: done | confidence=%.3f | chunks=%d | top=%s",
         confidence, len(sources), sources[0] if sources else "—",
     )
     return result
@@ -195,19 +199,14 @@ async def _generate_answer(query: str, context: str) -> str:
 
 
 def _build_context(chunks: list[dict]) -> str:
-    """
-    Format reranked chunks into a numbered context block.
-
-    Each block is prefixed with its article and law citation so GPT-4o
-    can produce grounded, citable answers.
-    """
+    """Format reranked chunks into a numbered context block."""
     parts: list[str] = []
 
     for i, chunk in enumerate(chunks, start=1):
-        article  = chunk.get("article", "")
-        law      = chunk.get("law_number", "")
-        doc      = chunk.get("document_name", "")
-        text     = chunk.get("chunk_text", "")
+        article = chunk.get("article", "")
+        law     = chunk.get("law_number", "")
+        doc     = chunk.get("document_name", "")
+        text    = chunk.get("chunk_text", "")
 
         header = f"[{i}]"
         if article:
@@ -234,10 +233,16 @@ def _build_legal_reference(chunk: dict) -> dict | None:
     return {"law": law, "article": article, "document": document}
 
 
-def _out_of_scope_result(language: str) -> dict:
+def _is_no_answer(answer: str) -> bool:
+    """Return True if GPT-4o indicated it couldn't find a direct answer."""
+    lower = answer.lower()
+    return any(phrase in lower for phrase in _NO_ANSWER_PHRASES)
+
+
+def _out_of_scope_result() -> dict:
     """Standardised out-of-scope response — disclaimer always included."""
     return {
-        "answer":          _OUT_OF_SCOPE_AR if language == "ar" else _OUT_OF_SCOPE_EN,
+        "answer":          _OUT_OF_SCOPE,
         "legal_reference": None,
         "confidence":      0.0,
         "sources":         [],

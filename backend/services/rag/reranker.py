@@ -1,11 +1,10 @@
 """
-Reranker — LLM-Based Chunk Reranking for Arabic Tax Retrieval.
+Reranker — LLM-Based Chunk Reranking for English Tax Retrieval.
 
 Why LLM reranking (not cross-encoder):
     - Cosine similarity measures linguistic similarity, not legal relevance
-    - A chunk mentioning "ضريبة" might rank high but not answer the question
-    - GPT-4o-mini understands Arabic legal context and judges true relevance
-    - No need for a separate Arabic cross-encoder model
+    - A chunk mentioning "tax" might rank high but not answer the question
+    - GPT-4o-mini understands English legal context and judges true relevance
 
 Strategy:
     1. Receive up to 15 deduplicated chunks from retriever
@@ -29,25 +28,24 @@ from agents.shared.llm_client import llm_fast
 
 logger = logging.getLogger(__name__)
 
-# Max chars shown per chunk in the rerank prompt (controls token usage)
 _CHUNK_PREVIEW_CHARS = 350
 
-_RERANK_SYSTEM = """أنت خبير قانوني ضريبي متخصص في القانون المصري.
-مهمتك: تقييم مدى صلة كل مقطع قانوني بالسؤال المطروح.
-قواعد التقييم:
-- 10: إجابة مباشرة وكاملة للسؤال
--  7: صلة قوية، يحتوي معلومات مفيدة
--  4: صلة جزئية أو غير مباشرة
--  1: لا صلة تذكر بالسؤال
-أعد JSON فقط بدون أي نص إضافي: {{"scores": [رقم, رقم, ...]}}
-عدد الأرقام يجب أن يساوي عدد المقاطع بالضبط."""
+_RERANK_SYSTEM = """You are a legal expert specializing in Egyptian tax law.
+Your task: score each legal passage for relevance to the user's question.
+Scoring guide:
+- 10: directly and completely answers the question
+-  7: strongly relevant, contains useful information
+-  4: partially or indirectly related
+-  1: not relevant to the question
+Return JSON only, no extra text: {{"scores": [number, number, ...]}}
+The number of scores must exactly match the number of passages."""
 
-_RERANK_HUMAN = """السؤال: {query}
+_RERANK_HUMAN = """Question: {query}
 
-المقاطع القانونية:
+Legal passages:
 {chunks_text}
 
-قيّم كل مقطع من 0 إلى 10."""
+Score each passage from 0 to 10."""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -62,22 +60,21 @@ async def rerank_chunks(
     """
     Rerank retrieved chunks by legal relevance to the query.
 
-    Skips LLM call if chunks <= top_n (no reranking needed).
+    Skips LLM call if chunks <= top_n.
     Falls back to cosine similarity order if LLM call fails.
 
     Args:
-        query:  Original user query (AR or EN).
+        query:  Original user query.
         chunks: Deduplicated RetrievedChunk dicts from retriever.
         top_n:  Number of top chunks to return (default: 3).
 
     Returns:
-        List of up to top_n RetrievedChunk dicts sorted by rerank score desc.
+        List of up to top_n chunks sorted by rerank score desc.
         Each chunk gets a "rerank_score" key added.
     """
     if not chunks:
         return []
 
-    # No need to call LLM if we already have few enough chunks
     if len(chunks) <= top_n:
         for chunk in chunks:
             chunk["rerank_score"] = chunk.get("similarity", 0.0)
@@ -98,7 +95,6 @@ async def rerank_chunks(
         logger.warning("Reranker LLM call failed: %s — using similarity order", exc)
         scores = [chunk.get("similarity", 0.0) for chunk in chunks]
 
-    # Attach rerank scores and sort
     ranked = sorted(
         zip(scores, chunks),
         key=lambda pair: pair[0],
@@ -122,28 +118,15 @@ async def rerank_chunks(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_rerank_prompt(query: str, chunks: list[dict]) -> str:
-    """
-    Build the scoring prompt body sent to GPT-4o-mini.
-
-    Each chunk is shown with its index [0], [1], … and truncated to
-    _CHUNK_PREVIEW_CHARS to keep total tokens manageable.
-    Article and law metadata are prepended so the model has legal context.
-
-    Args:
-        query:  User query string.
-        chunks: List of RetrievedChunk dicts.
-
-    Returns:
-        Formatted prompt string (the HumanMessage content).
-    """
+    """Build the scoring prompt sent to GPT-4o-mini."""
     lines: list[str] = []
 
     for i, chunk in enumerate(chunks):
-        article  = chunk.get("article", "")
-        law      = chunk.get("law_number", "")
-        text     = chunk.get("chunk_text", "")[:_CHUNK_PREVIEW_CHARS]
+        article = chunk.get("article", "")
+        law     = chunk.get("law_number", "")
+        text    = chunk.get("chunk_text", "")[:_CHUNK_PREVIEW_CHARS]
 
-        header   = f"[{i}]"
+        header = f"[{i}]"
         if article:
             header += f" {article}"
         if law:
@@ -152,7 +135,6 @@ def build_rerank_prompt(query: str, chunks: list[dict]) -> str:
         lines.append(f"{header}\n{text}")
 
     chunks_text = "\n\n---\n\n".join(lines)
-
     return _RERANK_HUMAN.format(query=query, chunks_text=chunks_text)
 
 
@@ -160,46 +142,29 @@ def parse_rerank_scores(response_text: str, expected_count: int) -> list[float]:
     """
     Parse JSON scores array from GPT-4o-mini response.
 
-    Handles:
-        - Markdown code fences (```json … ```)
-        - Extra text before/after the JSON object
-        - Missing or extra scores (pads / truncates to expected_count)
-        - Non-numeric values in the scores array
-
-    Falls back to uniform 5.0 scores if parsing fails entirely,
-    so reranking never blocks the downstream pipeline.
-
-    Args:
-        response_text:  Raw content string from LLM response.
-        expected_count: Number of scores expected (= len(chunks)).
-
-    Returns:
-        list[float] of length == expected_count.
+    Handles markdown fences, extra text, wrong length.
+    Falls back to uniform 5.0 scores if parsing fails entirely.
     """
     fallback = [5.0] * expected_count
 
     try:
         text = response_text.strip()
 
-        # Strip markdown code fences
         if text.startswith("```"):
             text = re.sub(r"^```(?:json)?\s*", "", text)
             text = re.sub(r"\s*```$", "", text)
 
-        # Extract first JSON object found in the response
         json_match = re.search(r"\{.*\}", text, re.DOTALL)
         if not json_match:
-            logger.warning("parse_rerank_scores: no JSON object found in response")
+            logger.warning("parse_rerank_scores: no JSON object found")
             return fallback
 
-        parsed = json.loads(json_match.group())
+        parsed     = json.loads(json_match.group())
         raw_scores = parsed.get("scores", [])
 
         if not isinstance(raw_scores, list):
-            logger.warning("parse_rerank_scores: 'scores' is not a list")
             return fallback
 
-        # Convert to float, clamp to [0, 10]
         scores: list[float] = []
         for val in raw_scores:
             try:
@@ -207,7 +172,6 @@ def parse_rerank_scores(response_text: str, expected_count: int) -> list[float]:
             except (TypeError, ValueError):
                 scores.append(5.0)
 
-        # Align length to expected_count
         if len(scores) < expected_count:
             scores.extend([5.0] * (expected_count - len(scores)))
         else:

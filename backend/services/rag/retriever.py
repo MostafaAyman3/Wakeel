@@ -18,7 +18,6 @@ Config defaults (from backend.core.config):
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from sqlalchemy import text
@@ -130,20 +129,16 @@ async def retrieve_multi(
     if not query_embeddings:
         return []
 
-    # Run all retrieval calls concurrently
-    tasks = [
-        retrieve(emb, db_session, top_k, threshold)
-        for emb in query_embeddings
-    ]
-
-    results: list[list[dict]] = await asyncio.gather(*tasks, return_exceptions=True)
-
+    # Run sequentially — AsyncSession does not allow concurrent operations
+    # on the same connection (asyncio.gather causes pgBouncer errors in
+    # transaction mode: "session is provisioning a new connection").
     all_chunks: list[dict] = []
-    for i, result in enumerate(results):
-        if isinstance(result, Exception):
-            logger.warning("retrieve_multi: embedding[%d] failed: %s", i, result)
-            continue
-        all_chunks.extend(result)
+    for i, emb in enumerate(query_embeddings):
+        try:
+            chunks = await retrieve(emb, db_session, top_k, threshold)
+            all_chunks.extend(chunks)
+        except Exception as exc:
+            logger.warning("retrieve_multi: embedding[%d] failed: %s", i, exc)
 
     deduplicated = deduplicate_chunks(all_chunks)
 

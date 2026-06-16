@@ -36,9 +36,8 @@ from agents.m1.tools.tax_rag_tool import DISCLAIMER, run_tax_rag
 
 logger = logging.getLogger(__name__)
 
-# Fallback error messages (node-level, not RAG-level)
-_ERROR_AR = "حدث خطأ غير متوقع أثناء معالجة سؤالك الضريبي. يُرجى المحاولة مرة أخرى."
-_ERROR_EN = "An unexpected error occurred while processing your tax question. Please try again."
+# Fallback error message (node-level, not RAG-level)
+_ERROR_MSG = "An unexpected error occurred while processing your tax question. Please try again."
 
 
 async def tax_rag_node(state: M1State) -> dict:
@@ -65,14 +64,14 @@ async def tax_rag_node(state: M1State) -> dict:
 
     if not query:
         logger.warning("tax_rag_node: empty query in state")
-        return _error_state(language, "empty query")
+        return _error_state("empty query")
 
     # ── Delegate to tool ──────────────────────────────────────────────────
     try:
         rag_result = await run_tax_rag(query=query, language=language)
     except Exception as exc:
         logger.error("tax_rag_node: run_tax_rag raised unexpectedly: %s", exc)
-        return _error_state(language, str(exc))
+        return _error_state(str(exc))
 
     # ── Map RAG result → M1State fields ───────────────────────────────────
     answer     = rag_result["answer"]
@@ -106,9 +105,9 @@ async def tax_rag_node(state: M1State) -> dict:
 # Helper
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _error_state(language: str, reason: str) -> dict:
+def _error_state(reason: str) -> dict:
     """Return a safe error state that keeps the graph moving without crashing."""
-    message = _ERROR_AR if language == "ar" else _ERROR_EN
+    message = _ERROR_MSG
 
     final_response = {
         "type":            "tax_rag",
