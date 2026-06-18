@@ -24,6 +24,11 @@ from agents.m3.nodes.issue_classifier_node import classify_issue
 from agents.m3.nodes.context_builder_node import build_context
 
 
+def _escalation_router(state: M3State) -> str:
+    """If escalation is needed, skip classifier/context — go to END."""
+    return "end" if state.get("escalation_needed", False) else "classify"
+
+
 def build_support_graph():
     """Build and compile the M3 support graph.
 
@@ -42,7 +47,11 @@ def build_support_graph():
     graph.add_edge(START, "input_parser")
     graph.add_edge("input_parser",            "data_fetcher")
     graph.add_edge("data_fetcher",            "completeness_check")
-    graph.add_edge("completeness_check",      "issue_classifier")   # Sprint 2
+    graph.add_conditional_edges(
+        "completeness_check",
+        _escalation_router,
+        {"classify": "issue_classifier", "end": END},
+    )
     graph.add_edge("issue_classifier",        "context_builder")    # Sprint 2
     graph.add_edge("context_builder",         END)
 

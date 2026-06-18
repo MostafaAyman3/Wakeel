@@ -3,6 +3,10 @@ M3 Orchestrator — invokes support_graph with customer input and returns struct
 
 Sprint 1: basic invocation + response formatting.
 Future sprints: audit trail logging, human review routing, escalation.
+
+NOTE: This module is NOT imported by the API endpoint (which invokes the graph
+directly). It exists as a convenience wrapper for standalone/CLI usage. Marked
+as dead code — do NOT integrate into the API without a specific requirement.
 """
 
 from __future__ import annotations

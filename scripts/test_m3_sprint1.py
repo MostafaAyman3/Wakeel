@@ -91,13 +91,29 @@ async def run_tests() -> bool:
             print(f"  Completeness:    {completeness}")
             print(f"  Confidence:      {confidence} ({get_confidence_label(confidence)})")
             print(f"  Escalation:      {escalation}")
+            # Sprint 2 outputs
+            print(f"  Issue type:      {result.get('issue_type')}")
+            print(f"  Issue priority:  {result.get('issue_priority')}")
+            print(f"  Context exists:  {bool(result.get('context'))}")
+            if result.get("context"):
+                ctx = result["context"]
+                print(f"  Context keys:    {list(ctx.keys())}")
             if fetched.get("invoice"):
                 print(f"  Invoice sample:  {json.dumps(fetched['invoice'], ensure_ascii=False)}")
 
             if expectation == "found":
                 ok = len(found) > 0
+                # Sprint 2: classifier and context should have run
+                if ok:
+                    ok = result.get("issue_type") is not None
+                    ok = ok and result.get("issue_priority") in ("High", "Medium", "Low")
+                    ok = ok and bool(result.get("context"))
             else:
                 ok = escalation is True and len(found) == 0
+                # Sprint 2: classifier/context skipped when escalated
+                if ok:
+                    ok = result.get("issue_type") is None
+                    ok = ok and result.get("context") == {}
 
             if ok:
                 print("  RESULT:          PASS")

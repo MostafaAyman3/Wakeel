@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 # ── Order status (orders table) ──────────────────────────────────────────────
 
 _ORDER_COLS = """
-    o.display_id        AS order_id,
+    o.display_id        AS display_id,
     c.display_id        AS customer_id,
     o.status            AS status,
     o.order_date        AS created_at,

@@ -39,7 +39,7 @@ def get_confidence_label(score: float) -> str:
     return "Low"
 
 
-async def check_completeness(state: M3State) -> dict:
+def check_completeness(state: M3State) -> dict:
     """Compute data_completeness, missing_fields, confidence, and escalation.
 
     Returns a partial state update. Pure/deterministic — no I/O, no LLM.

@@ -39,7 +39,7 @@ class M3State(TypedDict, total=False):
     # ── Input (Sprint 1 — InputParserNode) ────────────────────────
     customer_identifier: dict     # { "type": IdentifierType, "value": str }
     issue_description: str         # cleaned, natural-language problem statement
-    language: Literal["ar", "en"]  # auto-detected from the customer's text
+    language: Literal["ar", "en", "auto"]  # "auto" is the initial default before detection
 
     # ── Classification (Sprint 2 — IssueClassifierNode) ───────────
     issue_type: IssueType | None   # None until Sprint 2

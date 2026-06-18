@@ -24,13 +24,6 @@ from backend.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-def _pick_name(customer: dict | None) -> str:
-    """Return Arabic name if available, else English name, else 'Customer'."""
-    if not customer:
-        return "Customer"
-    return customer.get("name_ar") or customer.get("name") or "Customer"
-
-
 def _build_invoice_context(invoice: dict | None) -> dict | None:
     if not invoice:
         return None
@@ -88,7 +81,7 @@ def _build_history_context(history: list[dict] | None) -> list[dict] | None:
     ]
 
 
-async def build_context(state: M3State) -> dict:
+def build_context(state: M3State) -> dict:
     """Build structured context from fetched_data and identifier info."""
     identifier: dict = state.get("customer_identifier", {})
     fetched: dict = state.get("fetched_data", {})

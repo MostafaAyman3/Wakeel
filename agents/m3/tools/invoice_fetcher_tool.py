@@ -21,12 +21,12 @@ from backend.core.logging import get_logger
 logger = get_logger(__name__)
 
 # Columns are aliased to the blueprint's expected response shape:
-#   { invoice_id, amount, status, customer_id, customer_name, ... }
+#   { display_id, total_amount, payment_status, customer_id, customer_name, ... }
 _SELECT_COLS = """
-    i.display_id     AS invoice_id,
-    i.total_amount   AS amount,
+    i.display_id     AS display_id,
+    i.total_amount   AS total_amount,
     i.tax_amount     AS tax_amount,
-    i.payment_status AS status,
+    i.payment_status AS payment_status,
     i.invoice_date   AS invoice_date,
     i.due_date       AS due_date,
     c.display_id     AS customer_id,
