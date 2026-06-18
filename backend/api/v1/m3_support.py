@@ -2,24 +2,31 @@
 M3 Customer Support Agent API router.
 
 Endpoint: POST /api/v1/support
-Accepts:  { query: str, identifier: { type: str, value: str } }
-Returns:  {
-    draft_response, confidence_score, review_required,
-    escalation_needed, transparency_data (when review_required)
-}
+Accepts:  { query: str, identifier?: { type, value } }
+          ``identifier`` is OPTIONAL — when omitted, InputParserNode extracts
+          it from ``query``; when supplied it seeds the parser (used by the
+          Sprint 5 customer form, and lets clients pin an exact reference).
+Returns:  SupportResponse — always JSON, never an HTTP error for agent
+          failures (keeps the frontend contract stable).
 
-Sprint 1 will wire this to m3_graph.
+Wired to ``support_graph`` (LangGraph StateGraph) since M3 Sprint 1.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from agents.m3.schemas.m3_state import build_initial_state
+from agents.m3.nodes.data_completeness_node import get_confidence_label
 from backend.core.auth import UserContext, get_current_user
 from backend.core.logging import get_logger
 
 router = APIRouter(prefix="/support", tags=["M3 Customer Support"])
 logger = get_logger(__name__)
 
+
+# ── Request schemas ──────────────────────────────────────────────
 
 class CustomerIdentifier(BaseModel):
     type: str = Field(..., pattern="^(order_id|invoice_id|customer_id)$")
@@ -28,48 +35,110 @@ class CustomerIdentifier(BaseModel):
 
 class SupportRequest(BaseModel):
     query: str = Field(..., min_length=3, max_length=2000)
-    identifier: CustomerIdentifier
+    identifier: CustomerIdentifier | None = None
 
+
+# ── Response schemas ─────────────────────────────────────────────
 
 class TransparencyData(BaseModel):
+    """Internal-only data the agent relied on.
+
+    TODO (Sprint 5 UI): this block powers the Human Review "Transparency
+    Panel". It MUST NOT be shown to the end customer in production — it is
+    for the support agent's review screen only.
+    """
+
     invoice: dict | None = None
     order: dict | None = None
     shipping: dict | None = None
     history: list | None = None
-    missing_fields: list[str] = []
 
 
 class SupportResponse(BaseModel):
     draft_response: str
     confidence_score: float
+    confidence_label: str          # High | Medium | Low — review UI only
     review_required: bool
     escalation_needed: bool
-    transparency_data: TransparencyData | None = None
+    issue_type: str | None = None  # populated in Sprint 2
+    transparency_data: TransparencyData
+    missing_fields: list[str] = []
 
+
+# ── Endpoint ─────────────────────────────────────────────────────
 
 @router.post("", response_model=SupportResponse)
 async def handle_support_request(
     request: SupportRequest,
     user: UserContext = Depends(get_current_user),
 ) -> SupportResponse:
-    """
-    Process a customer support query.
+    """Process a customer support query through the M3 agent graph.
 
-    Sprint 0 (M3): Mock data tables ready.
-    Sprint 1 (M3): Input Parser + Data Fetcher + Completeness Check.
-    Sprint 2 (M3): Issue Classifier + Context Builder.
-    Sprint 3 (M3): Response Generator + Graceful Degradation.
-    Sprint 4 (M3): Human Review Gate + Escalation + Audit Trail.
+    Sprint 1 scope: parse input → fetch data (4 sources, parallel) →
+    score completeness. Response generation (draft_response) and the human
+    review gate land in Sprints 3–4, so ``draft_response`` is empty here.
     """
     logger.info(
         "support_request_received",
         user_id=user.user_id,
-        identifier_type=request.identifier.type,
+        has_identifier=request.identifier is not None,
         query_length=len(request.query),
     )
 
-    # Placeholder until Sprint 1 wires m3_graph
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="M3 agent graph not yet wired. Implement M3 Sprint 1.",
-    )
+    try:
+        # Lazy import — avoids heavy LLM/graph init at module-load time.
+        from agents.m3.graphs.m3_graph import support_graph
+
+        identifier = request.identifier.model_dump() if request.identifier else None
+        initial_state = build_initial_state(query=request.query, identifier=identifier)
+
+        result: dict = await support_graph.ainvoke(initial_state)
+
+        fetched = result.get("fetched_data") or {}
+        confidence = float(result.get("confidence_score", 0.0))
+
+        logger.info(
+            "support_request_completed",
+            user_id=user.user_id,
+            data_completeness=result.get("data_completeness", 0.0),
+            escalation_needed=result.get("escalation_needed", False),
+        )
+
+        return SupportResponse(
+            draft_response=result.get("draft_response", ""),
+            confidence_score=confidence,
+            confidence_label=get_confidence_label(confidence),
+            review_required=bool(result.get("review_required", False)),
+            escalation_needed=bool(result.get("escalation_needed", False)),
+            issue_type=result.get("issue_type"),
+            transparency_data=TransparencyData(
+                invoice=fetched.get("invoice"),
+                order=fetched.get("order"),
+                shipping=fetched.get("shipping"),
+                history=fetched.get("history"),
+            ),
+            missing_fields=result.get("missing_fields", []),
+        )
+
+    except Exception as exc:  # noqa: BLE001 — never leak a stack trace to the client
+        logger.error("support_request_failed", user_id=user.user_id, error=str(exc))
+
+        lang = "ar" if any("؀" <= c <= "ۿ" for c in request.query) else "en"
+        message = (
+            "حدث خطأ أثناء معالجة طلبك. سيتواصل معك فريق الدعم قريباً."
+            if lang == "ar"
+            else "An error occurred while processing your request. "
+            "Our support team will reach out shortly."
+        )
+
+        # Degrade gracefully: escalate instead of returning an HTTP 500.
+        return SupportResponse(
+            draft_response=message,
+            confidence_score=0.0,
+            confidence_label="Low",
+            review_required=True,
+            escalation_needed=True,
+            issue_type=None,
+            transparency_data=TransparencyData(),
+            missing_fields=["invoice", "order", "shipping", "history"],
+        )

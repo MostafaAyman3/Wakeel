@@ -452,6 +452,36 @@ Result: SUCCESS
 
 ---
 
+## Step 25
+
+Time: 2026-06-18
+Action: Implemented M3 Sprint 1 — LangGraph Skeleton + Input Parser + Data Fetcher + Completeness Check
+Reason: M3 Sprint 1 deliverable — "agent يُحلّل الإدخال، يجلب البيانات، ويعرف اكتمالها"
+Decision context: A generic Sprint-1 template proposed a separate `app/` tree, in-memory mock dicts, and a `clients` table. Per user decision: (1) keep the existing `agents/m3/` + `backend/` structure, and (2) fetch order/shipping/history from the REAL Supabase tables seeded in Sprint 0 (not in-memory mocks).
+Files created/updated:
+- agents/shared/language.py — shared AR/EN detect_language
+- agents/shared/db_utils.py — jsonify_row/jsonify_rows (datetime/Decimal/UUID → JSON-safe)
+- agents/m3/schemas/m3_state.py — M3State TypedDict (total=False, 12 fields) + build_initial_state()
+- agents/prompts/input_parser.py — bilingual InputParser system prompt
+- agents/m3/nodes/input_parser_node.py — GPT-4o-mini extraction + regex fallback + language detect; trusts API-supplied identifier; escalates when none found
+- agents/m3/tools/invoice_fetcher_tool.py — REAL invoice fetch (invoices + customers)
+- agents/m3/tools/mock_data_tool.py — fetch_order (orders), fetch_shipping (shipments), fetch_history (customer_interactions)
+- agents/m3/nodes/data_fetcher_node.py — asyncio.gather over 4 sources, return_exceptions, missing→None
+- agents/m3/nodes/data_completeness_node.py — completeness scoring (1.0/0.5/0.0) + missing_fields + escalation + get_confidence_label()
+- agents/m3/graphs/m3_graph.py — StateGraph: input_parser → data_fetcher → completeness_check → END; exports `support_graph`
+- backend/api/v1/m3_support.py — POST /api/v1/support wired to support_graph; identifier OPTIONAL; full response schema; errors degrade to escalation
+- agents/m3/{nodes,schemas,graphs,tools}/__init__.py — package inits
+- scripts/test_m3_sprint1.py — integration test (5 cases)
+Key decisions: State is TypedDict (matches M1 + LangGraph); table-name mapping honored (order_status→orders, shipping→shipments, customer_history→customer_interactions); lookups by display_id; M3 uses read-write engine (readonly stays M1-exclusive).
+Verification:
+- Installed backend/requirements.txt on Python 3.10
+- Live integration test: **5/5 PASSED** (real GPT-4o-mini + Supabase) — incl. graceful-degradation (DEL-999) and no-identifier escalation
+- Fixed test fixture: INV-890 (blueprint example) → INV-0001 (real seed format)
+Full detailed log: `docs/progress/agent_execution_log_m3s1.md`
+Result: SUCCESS — M3 Sprint 1 COMPLETE
+
+---
+
 ## Remaining Work (for implementation phase)
 
 The following are NOT architecture tasks — they are implementation tasks for the development team:
@@ -517,11 +547,19 @@ The following are NOT architecture tasks — they are implementation tasks for t
 - [x] Mock tables deployed: customer_interactions (32 rows), shipments (189 rows) — customer_id consistent across tables
 - [x] **Sprint 0 COMPLETE** ✅ — Note: table names differ from sprint plan spec but serve the same purpose
 
-### M3 — Sprint 1-4
-- [ ] Implement all 7 M3 nodes (InputParser, DataFetcher, DataCompletenessCheck, IssueClassifier, ContextBuilder, ResponseGenerator, HumanReviewGate)
-- [ ] Wire m3_graph.py
-- [ ] Implement Audit Trail logging (audit_log table ready)
-- [ ] Endpoint /support: accepts { query, identifier }, returns JSON
+### M3 — Sprint 1
+- [x] Implement InputParserNode (GPT-4o-mini + regex fallback) — `agents/m3/nodes/input_parser_node.py`
+- [x] Implement DataFetcherNode (4 sources, asyncio.gather) — `agents/m3/nodes/data_fetcher_node.py`
+- [x] Implement DataCompletenessCheckNode — `agents/m3/nodes/data_completeness_node.py`
+- [x] Implement fetch tools (REAL invoice + orders/shipments/customer_interactions) — `agents/m3/tools/`
+- [x] Wire m3_graph.py (input_parser → data_fetcher → completeness_check) — `agents/m3/graphs/m3_graph.py`
+- [x] Endpoint /support: accepts { query, identifier? }, returns full JSON — `backend/api/v1/m3_support.py`
+- [x] **Sprint 1 COMPLETE** ✅ — 5/5 integration tests passed (`scripts/test_m3_sprint1.py`). Full detail: `docs/progress/agent_execution_log_m3s1.md`
+
+### M3 — Sprint 2-4 (remaining)
+- [ ] Implement IssueClassifierNode + ContextBuilderNode (Sprint 2)
+- [ ] Implement ResponseGeneratorNode + Graceful Degradation + Repeat-Issue Detection (Sprint 3)
+- [ ] Implement HumanReviewGateNode + EscalationNode + Audit Trail logging (Sprint 4, audit_log table ready)
 
 ### M3 — Sprint 5-6
 - [ ] Frontend: Customer Input Interface + Human Review Interface
