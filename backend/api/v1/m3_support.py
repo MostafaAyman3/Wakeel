@@ -50,7 +50,7 @@ class TransparencyData(BaseModel):
 
     invoice: dict | None = None
     order: dict | None = None
-    shipping: dict | None = None
+    shipping: list | dict | None = None
     history: list | None = None
 
 
@@ -74,9 +74,10 @@ async def handle_support_request(
 ) -> SupportResponse:
     """Process a customer support query through the M3 agent graph.
 
-    Sprint 1 scope: parse input → fetch data (4 sources, parallel) →
-    score completeness. Response generation (draft_response) and the human
-    review gate land in Sprints 3–4, so ``draft_response`` is empty here.
+    Sprint 1+2 scope: parse input -> fetch data (4 sources, parallel) ->
+    score completeness -> classify issue -> build context. Response
+    generation (draft_response) and the human review gate land in
+    Sprints 3-4, so ``draft_response`` is empty here.
     """
     logger.info(
         "support_request_received",
@@ -86,7 +87,6 @@ async def handle_support_request(
     )
 
     try:
-        # Lazy import — avoids heavy LLM/graph init at module-load time.
         from agents.m3.graphs.m3_graph import support_graph
 
         identifier = request.identifier.model_dump() if request.identifier else None
@@ -120,18 +120,20 @@ async def handle_support_request(
             missing_fields=result.get("missing_fields", []),
         )
 
-    except Exception as exc:  # noqa: BLE001 — never leak a stack trace to the client
+    except Exception as exc:
         logger.error("support_request_failed", user_id=user.user_id, error=str(exc))
 
-        lang = "ar" if any("؀" <= c <= "ۿ" for c in request.query) else "en"
+        lang = "ar" if any("\u0600" <= c <= "\u06FF" for c in request.query) else "en"
         message = (
-            "حدث خطأ أثناء معالجة طلبك. سيتواصل معك فريق الدعم قريباً."
+            "\u062d\u062f\u062b \u062e\u0637\u0623 \u0623\u062b\u0646\u0627\u0621 "
+            "\u0645\u0639\u0627\u0644\u062c\u0629 \u0637\u0644\u0628\u0643. "
+            "\u0633\u064a\u062a\u0648\u0627\u0635\u0644 \u0645\u0639\u0643 "
+            "\u0641\u0631\u064a\u0642 \u0627\u0644\u062f\u0639\u0645 \u0642\u0631\u064a\u0628\u0627\u064b."
             if lang == "ar"
             else "An error occurred while processing your request. "
             "Our support team will reach out shortly."
         )
 
-        # Degrade gracefully: escalate instead of returning an HTTP 500.
         return SupportResponse(
             draft_response=message,
             confidence_score=0.0,

@@ -10,7 +10,7 @@ Confidence (Sprint 1 only): confidence_score = data_completeness.
 A richer, LLM-aware confidence lands in Sprint 3 (ResponseGenerator).
 
 The ``get_confidence_label`` helper is shared with the API layer so the
-🟢/🟡/🔴 mapping is defined in exactly one place.
+High/Medium/Low mapping is defined in exactly one place.
 """
 
 from __future__ import annotations
@@ -28,9 +28,9 @@ def get_confidence_label(score: float) -> str:
     """Map a 0.0–1.0 confidence score to a High/Medium/Low label.
 
     Thresholds (blueprint section 3.5):
-        score >= 0.8 → "High"   (🟢)
-        score >= 0.5 → "Medium" (🟡)
-        else         → "Low"    (🔴)
+        score >= 0.8 -> "High"
+        score >= 0.5 -> "Medium"
+        else         -> "Low"
     """
     if score >= 0.8:
         return "High"
@@ -50,7 +50,6 @@ async def check_completeness(state: M3State) -> dict:
     missing = [s for s in _REQUIRED_SOURCES if not fetched_data.get(s)]
 
     if not present:
-        # No data at all → graceful degradation handled downstream + escalate.
         completeness = 0.0
         escalation_needed = True
     elif not missing:

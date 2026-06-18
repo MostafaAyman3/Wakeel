@@ -1,7 +1,7 @@
 """
 M3 Sprint 1 Integration Test — runs the support graph end-to-end.
 
-Exercises: InputParser → DataFetcher (real Supabase) → DataCompletenessCheck.
+Exercises: InputParser -> DataFetcher (real Supabase) -> DataCompletenessCheck.
 Makes real LLM calls (GPT-4o-mini) and real DB queries.
 
 Usage:
@@ -19,11 +19,9 @@ import json
 
 sys.path.insert(0, ".")
 
-# Windows consoles default to cp1252, which cannot encode Arabic output.
-# Force UTF-8 so the bilingual test output prints correctly.
 try:
-    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
-except Exception:  # noqa: BLE001 — older/odd stdout objects
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
     pass
 
 
@@ -32,12 +30,11 @@ async def run_tests() -> bool:
     from agents.m3.schemas.m3_state import build_initial_state
     from agents.m3.nodes.data_completeness_node import get_confidence_label
 
-    # (name, query, identifier|None, expectation)
-    #   expectation: "found" → at least one source; "none" → escalate.
     tests = [
         (
             "AR order status — identifier in text",
-            "فين الأوردر بتاعي ORD-2024-1567؟",
+            "\u0641\u064a\u0646 \u0627\u0644\u0623\u0648\u0631\u062f\u0631 "
+            "\u0628\u062a\u0627\u0639\u064a ORD-2024-1567\u061f",
             None,
             "found",
         ),
@@ -49,19 +46,23 @@ async def run_tests() -> bool:
         ),
         (
             "AR repeat issue — customer history",
-            "أنا عميل قديم وعندي مشكلة متكررة في التوصيل",
+            "\u0623\u0646\u0627 \u0639\u0645\u064a\u0644 \u0642\u062f\u064a\u0645 "
+            "\u0648\u0639\u0646\u062f\u064a \u0645\u0634\u0643\u0644\u0629 "
+            "\u0645\u062a\u0643\u0631\u0631\u0629 \u0641\u064a \u0627\u0644\u062a\u0648\u0635\u064a\u0644",
             {"type": "customer_id", "value": "CUST-001"},
             "found",
         ),
         (
             "Missing data — non-existent reference (graceful degradation)",
-            "مشكلة في التوصيلة رقم DEL-999",
+            "\u0645\u0634\u0643\u0644\u0629 \u0641\u064a \u0627\u0644\u062a\u0648\u0635\u064a\u0644\u0629 "
+            "\u0631\u0642\u0645 DEL-999",
             None,
             "none",
         ),
         (
             "No identifier at all — must escalate",
-            "عايز أعرف حالة طلبي من فضلك",
+            "\u0639\u0627\u064a\u0632 \u0623\u0639\u0631\u0641 "
+            "\u062d\u0627\u0644\u0629 \u0637\u0644\u0628\u064a \u0645\u0646 \u0641\u0636\u0644\u0643",
             None,
             "none",
         ),
@@ -95,7 +96,7 @@ async def run_tests() -> bool:
 
             if expectation == "found":
                 ok = len(found) > 0
-            else:  # "none"
+            else:
                 ok = escalation is True and len(found) == 0
 
             if ok:
@@ -105,7 +106,7 @@ async def run_tests() -> bool:
                 print(f"  RESULT:          FAIL (expected {expectation})")
                 failed += 1
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"  RESULT:          ERROR - {exc}")
             failed += 1
 

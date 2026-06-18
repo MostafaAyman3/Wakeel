@@ -2,7 +2,6 @@
 M3 Customer Support Agent — LangGraph State Schema.
 
 Blueprint reference: section 3.4 — LangGraph State Schema
-M3 Sprint 1 implementation.
 
 Design note — TypedDict vs Pydantic:
     The graph state is a ``TypedDict`` (total=False) to match the existing
@@ -19,7 +18,6 @@ from __future__ import annotations
 
 from typing import Literal, TypedDict
 
-# 5 issue categories — classified in Sprint 2 (IssueClassifierNode).
 IssueType = Literal[
     "status_inquiry",
     "billing_dispute",
@@ -28,7 +26,6 @@ IssueType = Literal[
     "general_complaint",
 ]
 
-# Allowed customer entry-point identifier types.
 IdentifierType = Literal["order_id", "invoice_id", "customer_id"]
 
 
@@ -46,14 +43,16 @@ class M3State(TypedDict, total=False):
 
     # ── Classification (Sprint 2 — IssueClassifierNode) ───────────
     issue_type: IssueType | None   # None until Sprint 2
+    issue_priority: Literal["High", "Medium", "Low"]  # Priority level
+    context: dict                  # Structured LLM context (Sprint 2)
 
     # ── Data Retrieval (Sprint 1 — DataFetcherNode) ───────────────
     fetched_data: dict             # { invoice, order, shipping, history }
-    data_completeness: float       # 0.0 → 1.0
+    data_completeness: float       # 0.0 -> 1.0
     missing_fields: list[str]      # source names that returned no data
 
     # ── Confidence (Sprint 1 = data_completeness; refined in Sprint 3) ─
-    confidence_score: float        # 0.0 → 1.0
+    confidence_score: float        # 0.0 -> 1.0
 
     # ── Response Generation (Sprint 3 — ResponseGeneratorNode) ────
     draft_response: str            # empty until Sprint 3
@@ -61,6 +60,7 @@ class M3State(TypedDict, total=False):
     # ── Review & Escalation (Sprint 4 — HumanReviewGateNode) ──────
     review_required: bool          # gate logic lands in Sprint 4
     escalation_needed: bool        # set True here when no data is found
+    rejection_context: dict | None # { reason, feedback } for Reject & Regenerate
     final_response: str            # empty until Sprint 4
 
     # ── Internal error channel (never raised to the client) ───────
@@ -87,24 +87,20 @@ def build_initial_state(
         A ready-to-invoke M3State.
     """
     return {
-        # Input
         "customer_identifier": identifier or {},
         "issue_description": query,
-        "language": language,  # type: ignore[typeddict-item]  ("auto" resolved in parser)
-        # Classification
+        "language": language,
         "issue_type": None,
-        # Data
+        "issue_priority": "Medium",
+        "context": {},
         "fetched_data": {},
         "data_completeness": 0.0,
         "missing_fields": [],
-        # Confidence
         "confidence_score": 0.0,
-        # Response
         "draft_response": "",
-        # Review
         "review_required": False,
         "escalation_needed": False,
+        "rejection_context": None,
         "final_response": "",
-        # Error
         "error": "",
     }

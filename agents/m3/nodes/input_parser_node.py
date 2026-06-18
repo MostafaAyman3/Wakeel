@@ -9,7 +9,7 @@ Responsibilities (M3 Sprint 1):
        fails or returns an empty/invalid value.
     4. If a pre-supplied identifier was passed by the API, trust it and
        skip extraction of the identifier (still cleans the description).
-    5. If no identifier can be determined at all → escalation_needed = True.
+    5. If no identifier can be determined at all -> escalation_needed = True.
 
 Blueprint reference: section 3.4 — Input Parser Node.
 """
@@ -31,8 +31,6 @@ logger = get_logger(__name__)
 
 VALID_IDENTIFIER_TYPES: set[str] = {"order_id", "invoice_id", "customer_id"}
 
-# Regex fallback — maps a reference prefix to its identifier type.
-# Generic shape: 2-5 leading letters, then hyphen/alnum groups.
 _REGEX_PATTERNS: list[tuple[str, str]] = [
     ("order_id", r"\b(?:ORD|DEL|TRK)[-A-Z0-9]+\b"),
     ("invoice_id", r"\bINV[-A-Z0-9]+\b"),
@@ -124,7 +122,7 @@ async def parse_input(state: M3State) -> dict:
                 "type": result.identifier_type,
                 "value": result.identifier_value.strip(),
             }
-    except Exception as exc:  # noqa: BLE001 — graceful degradation by design
+    except Exception as exc:
         logger.warning("input_parser_llm_failed", error=str(exc))
 
     # ── 4. Regex fallback when the LLM gave no usable identifier ──
@@ -133,7 +131,7 @@ async def parse_input(state: M3State) -> dict:
         if identifier:
             logger.info("input_parser_regex_fallback", identifier=identifier)
 
-    # ── 5. No identifier at all → escalate (graceful degradation) ─
+    # ── 5. No identifier at all -> escalate (graceful degradation) ─
     if identifier is None:
         logger.warning("input_parser_no_identifier", text_preview=raw_text[:80])
         return {
