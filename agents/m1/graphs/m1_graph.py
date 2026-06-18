@@ -1,5 +1,5 @@
 """
-M1 LangGraph StateGraph — wires all Sprint 1-3 nodes together.
+M1 LangGraph StateGraph — wires all Sprint 1-4 nodes together.
 
 Flow:
     START → IntentClassifier → Router (conditional)
@@ -7,10 +7,11 @@ Flow:
         ├─ financial_query       → DBQueryTool                → ValidationEnrichment → END
         ├─ operational_query     → DBQueryTool                → ValidationEnrichment → END
         ├─ invoice_analysis      → InvoiceAnalysisToolNode    → ValidationEnrichment → END  ← Sprint 3
-        └─ tax_reasoning         → Tax RAG Stub               → ValidationEnrichment → END
+        └─ tax_reasoning         → TaxRAGNode (Sprint 4)      → ValidationEnrichment → END
 
 Blueprint reference: section 2.5 — Agent Workflow
 Sprint 3: replaced invoice_analysis_stub with InvoiceAnalysisToolNode
+Sprint 4: replaced tax_rag_stub with tax_rag_node (Tax RAG — pgvector)
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from agents.m1.nodes.clarification_node import clarify
 from agents.m1.nodes.validation_enrichment_node import validate_and_enrich
 from agents.m1.tools.db_query_tool import db_query_tool
 from agents.m1.nodes.invoice_analysis_tool_node import invoice_analysis_tool  # Sprint 3
-from agents.m1.nodes.stub_nodes import tax_rag_stub
+from agents.m1.nodes.tax_rag_node import tax_rag_node  # Sprint 4 — real node
 
 
 def build_m1_graph():
@@ -39,7 +40,7 @@ def build_m1_graph():
     graph.add_node("clarification",        clarify)
     graph.add_node("db_query_tool",        db_query_tool)
     graph.add_node("invoice_analysis_tool", invoice_analysis_tool)  # Sprint 3 — real node
-    graph.add_node("tax_rag_stub",         tax_rag_stub)
+    graph.add_node("tax_rag_node",          tax_rag_node)   # Sprint 4 — real node
     graph.add_node("validation_enrichment", validate_and_enrich)
 
     # ── Entry point ───────────────────────────────────────────────────
@@ -53,7 +54,7 @@ def build_m1_graph():
             "clarification":           "clarification",
             "db_query_tool":           "db_query_tool",
             "invoice_analysis_tool":   "invoice_analysis_tool",  # Sprint 3
-            "tax_rag_stub":            "tax_rag_stub",
+            "tax_rag_node":            "tax_rag_node",   # Sprint 4
         },
     )
 
@@ -63,7 +64,7 @@ def build_m1_graph():
     # ── Tool nodes → Validation → END ────────────────────────────────
     graph.add_edge("db_query_tool",         "validation_enrichment")
     graph.add_edge("invoice_analysis_tool", "validation_enrichment")  # Sprint 3
-    graph.add_edge("tax_rag_stub",          "validation_enrichment")
+    graph.add_edge("tax_rag_node",           "validation_enrichment")  # Sprint 4
     graph.add_edge("validation_enrichment", END)
 
     return graph.compile()

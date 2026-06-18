@@ -58,6 +58,22 @@ async def test_e2e_flow():
             "name": "[Sprint 3] Top Vendors Analysis (AR)",
             "query": "مين هما أكتر 3 موردين بندفعلهم فلوس؟",
             "expected_intent": "invoice_analysis"
+        },
+        # --- Sprint 4: Tax RAG ---
+        {
+            "name": "[Sprint 4] Tax RAG - Income Tax Rate (EN)",
+            "query": "What is the corporate income tax rate?",
+            "expected_intent": "tax_reasoning"
+        },
+        {
+            "name": "[Sprint 4] Tax RAG - VAT (AR)",
+            "query": "ما هي نسبة ضريبة القيمة المضافة؟",
+            "expected_intent": "tax_reasoning"
+        },
+        {
+            "name": "[Sprint 4] Tax RAG - Penalties (AR)",
+            "query": "ما هي عقوبات التهرب الضريبي؟",
+            "expected_intent": "tax_reasoning"
         }
     ]
 
@@ -65,7 +81,7 @@ async def test_e2e_flow():
     failed = 0
 
     print("\n" + "="*80)
-    print("🚀 Running E2E Agentic Workflow Tests (Sprints 1, 2, 3)")
+    print("🚀 Running E2E Agentic Workflow Tests (Sprints 1, 2, 3, 4)")
     print("="*80)
 
     for i, test in enumerate(tests, 1):

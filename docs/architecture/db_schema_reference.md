@@ -1,9 +1,9 @@
 # Database Schema Reference — AERIE
 
 > **Auto-generated** — لا تعدّل يدوياً. شغّل `scripts/verify_connections.py` لتحديث.
-> **Generated at:** 2026-06-14 21:21:23
+> **Generated at:** 2026-06-18 19:45:54
 > **Source:** Supabase (public schema)
-> **Total tables:** 14
+> **Total tables:** 15
 
 ---
 
@@ -21,6 +21,7 @@
 - [payments](#payments)
 - [products](#products)
 - [shipments](#shipments)
+- [tax_chunks](#tax-chunks)
 - [transactions](#transactions)
 - [vendors](#vendors)
 
@@ -332,6 +333,30 @@
 
 - `idx_shipments_order`: `CREATE INDEX idx_shipments_order ON public.shipments USING btree (order_id)`
 - `idx_shipments_tracking`: `CREATE INDEX idx_shipments_tracking ON public.shipments USING btree (tracking_number)`
+
+---
+
+## `tax_chunks`
+
+**Type:** BASE TABLE | **Rows:** 226 | **PK:** `id`
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| `id` | `uuid` | NO | `gen_random_uuid()` | 🔑 PK |
+| `chunk_id` | `text` | NO | `` |  |
+| `document_name` | `text` | NO | `''::text` |  |
+| `law_number` | `text` | NO | `''::text` |  |
+| `article` | `text` | NO | `''::text` |  |
+| `section` | `text` | NO | `''::text` |  |
+| `chunk_text` | `text` | NO | `` |  |
+| `embedding` | `vector` | YES | `` |  |
+| `metadata` | `jsonb` | YES | `'{}'::jsonb` |  |
+| `created_at` | `timestamptz` | NO | `now()` |  |
+
+**Indexes:**
+
+- `tax_chunks_chunk_id_key`: `CREATE UNIQUE INDEX tax_chunks_chunk_id_key ON public.tax_chunks USING btree (chunk_id)`
+- `tax_chunks_embedding_idx`: `CREATE INDEX tax_chunks_embedding_idx ON public.tax_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists='100')`
 
 ---
 

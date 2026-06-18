@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-14T21:21:23.291158",
+  "generated_at": "2026-06-18T19:45:54.490573",
   "source": "supabase",
   "schema": "public",
   "tables": {
@@ -1334,6 +1334,120 @@
         }
       ],
       "row_count": 189
+    },
+    "tax_chunks": {
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "uuid",
+          "udt_name": "uuid",
+          "max_length": null,
+          "nullable": false,
+          "default": "gen_random_uuid()",
+          "position": 1
+        },
+        {
+          "name": "chunk_id",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 2
+        },
+        {
+          "name": "document_name",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": false,
+          "default": "''::text",
+          "position": 3
+        },
+        {
+          "name": "law_number",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": false,
+          "default": "''::text",
+          "position": 4
+        },
+        {
+          "name": "article",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": false,
+          "default": "''::text",
+          "position": 5
+        },
+        {
+          "name": "section",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": false,
+          "default": "''::text",
+          "position": 6
+        },
+        {
+          "name": "chunk_text",
+          "data_type": "text",
+          "udt_name": "text",
+          "max_length": null,
+          "nullable": false,
+          "default": null,
+          "position": 7
+        },
+        {
+          "name": "embedding",
+          "data_type": "USER-DEFINED",
+          "udt_name": "vector",
+          "max_length": null,
+          "nullable": true,
+          "default": null,
+          "position": 8
+        },
+        {
+          "name": "metadata",
+          "data_type": "jsonb",
+          "udt_name": "jsonb",
+          "max_length": null,
+          "nullable": true,
+          "default": "'{}'::jsonb",
+          "position": 9
+        },
+        {
+          "name": "created_at",
+          "data_type": "timestamp with time zone",
+          "udt_name": "timestamptz",
+          "max_length": null,
+          "nullable": false,
+          "default": "now()",
+          "position": 10
+        }
+      ],
+      "primary_keys": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "tax_chunks_pkey",
+          "definition": "CREATE UNIQUE INDEX tax_chunks_pkey ON public.tax_chunks USING btree (id)"
+        },
+        {
+          "name": "tax_chunks_chunk_id_key",
+          "definition": "CREATE UNIQUE INDEX tax_chunks_chunk_id_key ON public.tax_chunks USING btree (chunk_id)"
+        },
+        {
+          "name": "tax_chunks_embedding_idx",
+          "definition": "CREATE INDEX tax_chunks_embedding_idx ON public.tax_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists='100')"
+        }
+      ],
+      "row_count": 226
     },
     "transactions": {
       "type": "BASE TABLE",
