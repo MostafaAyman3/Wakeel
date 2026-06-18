@@ -23,11 +23,18 @@ from agents.m3.nodes.data_completeness_node import check_completeness
 from agents.m3.nodes.issue_classifier_node import classify_issue
 from agents.m3.nodes.context_builder_node import build_context
 from agents.m3.nodes.response_generator_node import generate_response  # Sprint 3
+from agents.m3.nodes.human_review_node import human_review_gate        # Sprint 4
+from agents.m3.nodes.escalation_node import escalate_case              # Sprint 4
 
 
 def _escalation_router(state: M3State) -> str:
     """If escalation is needed, skip classifier/context — go to ResponseGenerator."""
     return "escalate" if state.get("escalation_needed", False) else "classify"
+
+
+def _review_router(state: M3State) -> str:
+    """Route after human review gate: escalate or end."""
+    return "escalate" if state.get("escalation_needed", False) else "end"
 
 
 def build_support_graph():
@@ -44,6 +51,8 @@ def build_support_graph():
     graph.add_node("issue_classifier",       classify_issue)              # Sprint 2
     graph.add_node("context_builder",        build_context)               # Sprint 2
     graph.add_node("response_generator",     generate_response)           # Sprint 3
+    graph.add_node("human_review_gate",      human_review_gate)           # Sprint 4
+    graph.add_node("escalation_node",        escalate_case)               # Sprint 4
 
     # ── Pipeline ──────────────────────────────────────────────────────
     graph.add_edge(START, "input_parser")
@@ -56,10 +65,13 @@ def build_support_graph():
     )
     graph.add_edge("issue_classifier",        "context_builder")         # Sprint 2
     graph.add_edge("context_builder",         "response_generator")      # Sprint 3
-    graph.add_edge("response_generator",      END)                       # Sprint 3
-
-    # TODO (Sprint 4): replace response_generator → END with
-    # response_generator → human_review_gate → [auto-send | review | escalate]
+    graph.add_edge("response_generator",      "human_review_gate")       # Sprint 4
+    graph.add_conditional_edges(                                         # Sprint 4
+        "human_review_gate",
+        _review_router,
+        {"escalate": "escalation_node", "end": END},
+    )
+    graph.add_edge("escalation_node",         END)                       # Sprint 4
 
     return graph.compile()
 

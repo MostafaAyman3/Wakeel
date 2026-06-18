@@ -14,13 +14,18 @@ Wired to ``support_graph`` (LangGraph StateGraph) since M3 Sprint 1.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from agents.m3.schemas.m3_state import build_initial_state
 from agents.m3.nodes.data_completeness_node import get_confidence_label
 from backend.core.auth import UserContext, get_current_user
 from backend.core.logging import get_logger
+from backend.services.human_review_service import (
+    approve_response,
+    reject_response,
+    escalate_manually,
+)
 
 router = APIRouter(prefix="/support", tags=["M3 Customer Support"])
 logger = get_logger(__name__)
@@ -36,6 +41,7 @@ class CustomerIdentifier(BaseModel):
 class SupportRequest(BaseModel):
     query: str = Field(..., min_length=3, max_length=2000)
     identifier: CustomerIdentifier | None = None
+    rejection_context: dict | None = None  # Sprint 4: Reject & Regenerate
 
 
 # ── Response schemas ─────────────────────────────────────────────
@@ -56,10 +62,12 @@ class TransparencyData(BaseModel):
 
 class SupportResponse(BaseModel):
     draft_response: str
+    final_response: str            # Sprint 4: populated after review/escalation
     confidence_score: float
     confidence_label: str          # High | Medium | Low — review UI only
     review_required: bool
     escalation_needed: bool
+    escalation_summary: dict       # Sprint 4: populated when escalated
     issue_type: str | None = None  # populated in Sprint 2
     transparency_data: TransparencyData
     missing_fields: list[str] = []
@@ -91,6 +99,8 @@ async def handle_support_request(
 
         identifier = request.identifier.model_dump() if request.identifier else None
         initial_state = build_initial_state(query=request.query, identifier=identifier)
+        if request.rejection_context:
+            initial_state["rejection_context"] = request.rejection_context
 
         result: dict = await support_graph.ainvoke(initial_state)
 
@@ -106,10 +116,12 @@ async def handle_support_request(
 
         return SupportResponse(
             draft_response=result.get("draft_response", ""),
+            final_response=result.get("final_response", ""),
             confidence_score=confidence,
             confidence_label=get_confidence_label(confidence),
             review_required=bool(result.get("review_required", False)),
             escalation_needed=bool(result.get("escalation_needed", False)),
+            escalation_summary=result.get("escalation_summary", {}),
             issue_type=result.get("issue_type"),
             transparency_data=TransparencyData(
                 invoice=fetched.get("invoice"),
@@ -136,11 +148,91 @@ async def handle_support_request(
 
         return SupportResponse(
             draft_response=message,
+            final_response=message,
             confidence_score=0.0,
             confidence_label="Low",
             review_required=True,
             escalation_needed=True,
+            escalation_summary={"escalation_reason": "System error during processing"},
             issue_type=None,
             transparency_data=TransparencyData(),
             missing_fields=["invoice", "order", "shipping", "history"],
         )
+
+
+# ── Review Action Endpoints (Sprint 4) ──────────────────────────
+
+class ApproveRequest(BaseModel):
+    case_id: str
+    draft_response: str
+    issue_type: str | None = None
+    confidence_score: float = 0.0
+
+
+class RejectRequest(BaseModel):
+    case_id: str
+    draft_response: str
+    feedback: str = Field(..., min_length=1, max_length=500)
+    issue_type: str | None = None
+    confidence_score: float = 0.0
+
+
+class EscalateRequest(BaseModel):
+    case_id: str
+    issue_type: str | None = None
+    confidence_score: float = 0.0
+    reason: str = ""
+
+
+class ReviewActionResponse(BaseModel):
+    case_id: str
+    action: str
+
+
+@router.post("/approve", response_model=ReviewActionResponse)
+async def approve_draft(
+    request: ApproveRequest,
+    user: UserContext = Depends(get_current_user),
+) -> ReviewActionResponse:
+    """Approve a draft response and send it to the customer."""
+    result = await approve_response(
+        case_id=request.case_id,
+        draft_response=request.draft_response,
+        issue_type=request.issue_type,
+        confidence_score=request.confidence_score,
+        reviewed_by=user.user_id,
+    )
+    return ReviewActionResponse(**result)
+
+
+@router.post("/reject", response_model=ReviewActionResponse)
+async def reject_draft(
+    request: RejectRequest,
+    user: UserContext = Depends(get_current_user),
+) -> ReviewActionResponse:
+    """Reject a draft response and request regeneration with feedback."""
+    result = await reject_response(
+        case_id=request.case_id,
+        draft_response=request.draft_response,
+        feedback=request.feedback,
+        issue_type=request.issue_type,
+        confidence_score=request.confidence_score,
+        reviewed_by=user.user_id,
+    )
+    return ReviewActionResponse(**result)
+
+
+@router.post("/escalate", response_model=ReviewActionResponse)
+async def escalate_case(
+    request: EscalateRequest,
+    user: UserContext = Depends(get_current_user),
+) -> ReviewActionResponse:
+    """Manually escalate a case to a senior agent."""
+    result = await escalate_manually(
+        case_id=request.case_id,
+        issue_type=request.issue_type,
+        confidence_score=request.confidence_score,
+        reviewed_by=user.user_id,
+        reason=request.reason,
+    )
+    return ReviewActionResponse(**result)

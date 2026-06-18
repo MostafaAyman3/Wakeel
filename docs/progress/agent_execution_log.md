@@ -556,10 +556,10 @@ The following are NOT architecture tasks — they are implementation tasks for t
 - [x] Endpoint /support: accepts { query, identifier? }, returns full JSON — `backend/api/v1/m3_support.py`
 - [x] **Sprint 1 COMPLETE** ✅ — 5/5 integration tests passed (`scripts/test_m3_sprint1.py`). Full detail: `docs/progress/agent_execution_log_m3s1.md`
 
-### M3 — Sprint 2-4 (remaining)
-- [ ] Implement IssueClassifierNode + ContextBuilderNode (Sprint 2)
-- [ ] Implement ResponseGeneratorNode + Graceful Degradation + Repeat-Issue Detection (Sprint 3)
-- [ ] Implement HumanReviewGateNode + EscalationNode + Audit Trail logging (Sprint 4, audit_log table ready)
+### M3 — Sprint 2-4
+- [x] Implement IssueClassifierNode + ContextBuilderNode (Sprint 2)
+- [x] Implement ResponseGeneratorNode + Graceful Degradation + Repeat-Issue Detection (Sprint 3)
+- [x] Implement HumanReviewGateNode + EscalationNode + Audit Trail logging (Sprint 4)
 
 ### M3 — Sprint 5-6
 - [ ] Frontend: Customer Input Interface + Human Review Interface

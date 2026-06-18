@@ -62,6 +62,7 @@ class M3State(TypedDict, total=False):
     escalation_needed: bool        # set True here when no data is found
     rejection_context: dict | None # { reason, feedback } for Reject & Regenerate
     final_response: str            # empty until Sprint 4
+    escalation_summary: dict       # { identifier, issue_type, data_summary, escalation_reason }
 
     # ── Internal error channel (never raised to the client) ───────
     error: str
@@ -102,5 +103,6 @@ def build_initial_state(
         "escalation_needed": False,
         "rejection_context": None,
         "final_response": "",
+        "escalation_summary": {},
         "error": "",
     }
