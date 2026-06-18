@@ -1,13 +1,13 @@
 """
 M3 Customer Support Agent — LangGraph StateGraph.
 
-Sprint 1 + 2 flow (linear):
+Sprint 1 + 2 + 3 flow:
     START → InputParser → DataFetcher → DataCompletenessCheck
-    → IssueClassifier → ContextBuilder → END
+    → (conditional: escalate → ResponseGenerator | classify → IssueClassifier
+       → ContextBuilder → ResponseGenerator) → END
 
-Later sprints insert nodes between ContextBuilder and END:
-    → ResponseGenerator (S3) → HumanReviewGate (S4)
-    → [auto-send | review | escalate]
+Sprint 4 will insert HumanReviewGate between ResponseGenerator and END:
+    → HumanReviewGate → [auto-send | review | escalate]
 
 Blueprint reference: section 3.4 — Agent Workflow.
 """
@@ -22,11 +22,12 @@ from agents.m3.nodes.data_fetcher_node import fetch_data
 from agents.m3.nodes.data_completeness_node import check_completeness
 from agents.m3.nodes.issue_classifier_node import classify_issue
 from agents.m3.nodes.context_builder_node import build_context
+from agents.m3.nodes.response_generator_node import generate_response  # Sprint 3
 
 
 def _escalation_router(state: M3State) -> str:
-    """If escalation is needed, skip classifier/context — go to END."""
-    return "end" if state.get("escalation_needed", False) else "classify"
+    """If escalation is needed, skip classifier/context — go to ResponseGenerator."""
+    return "escalate" if state.get("escalation_needed", False) else "classify"
 
 
 def build_support_graph():
@@ -40,23 +41,25 @@ def build_support_graph():
     graph.add_node("input_parser",           parse_input)
     graph.add_node("data_fetcher",           fetch_data)
     graph.add_node("completeness_check",     check_completeness)
-    graph.add_node("issue_classifier",       classify_issue)        # Sprint 2
-    graph.add_node("context_builder",        build_context)         # Sprint 2
+    graph.add_node("issue_classifier",       classify_issue)              # Sprint 2
+    graph.add_node("context_builder",        build_context)               # Sprint 2
+    graph.add_node("response_generator",     generate_response)           # Sprint 3
 
-    # ── Sequential pipeline ───────────────────────────────────────────
+    # ── Pipeline ──────────────────────────────────────────────────────
     graph.add_edge(START, "input_parser")
     graph.add_edge("input_parser",            "data_fetcher")
     graph.add_edge("data_fetcher",            "completeness_check")
     graph.add_conditional_edges(
         "completeness_check",
         _escalation_router,
-        {"classify": "issue_classifier", "end": END},
+        {"classify": "issue_classifier", "escalate": "response_generator"},
     )
-    graph.add_edge("issue_classifier",        "context_builder")    # Sprint 2
-    graph.add_edge("context_builder",         END)
+    graph.add_edge("issue_classifier",        "context_builder")         # Sprint 2
+    graph.add_edge("context_builder",         "response_generator")      # Sprint 3
+    graph.add_edge("response_generator",      END)                       # Sprint 3
 
-    # TODO (Sprint 3+): add response_generator (S3) and a
-    # conditional human_review_gate (S4) between context_builder and END.
+    # TODO (Sprint 4): replace response_generator → END with
+    # response_generator → human_review_gate → [auto-send | review | escalate]
 
     return graph.compile()
 
