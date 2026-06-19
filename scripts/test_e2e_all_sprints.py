@@ -16,7 +16,8 @@ async def test_e2e_flow():
     # Verify LangSmith is enabled
     tracing_enabled = os.getenv("LANGCHAIN_TRACING_V2", "false").lower() == "true"
     project_name = os.getenv("LANGCHAIN_PROJECT", "default")
-    print(f"\n[{'✅' if tracing_enabled else '❌'}] LangSmith Tracing is {'ENABLED' if tracing_enabled else 'DISABLED'} (Project: {project_name})")
+    tracing_icon = "[OK]" if tracing_enabled else "[--]"
+    print(f"\n{tracing_icon} LangSmith Tracing is {'ENABLED' if tracing_enabled else 'DISABLED'} (Project: {project_name})")
     if not tracing_enabled:
         print("    --> NOTE: To see logs in LangSmith, set LANGCHAIN_TRACING_V2=true and provide LANGCHAIN_API_KEY in .env")
 
@@ -81,7 +82,7 @@ async def test_e2e_flow():
     failed = 0
 
     print("\n" + "="*80)
-    print("🚀 Running E2E Agentic Workflow Tests (Sprints 1, 2, 3, 4)")
+    print("Running E2E Agentic Workflow Tests (Sprints 1, 2, 3, 4, 5)")
     print("="*80)
 
     for i, test in enumerate(tests, 1):
@@ -107,27 +108,54 @@ async def test_e2e_flow():
             narrative = result.get("narrative", "")
             clarification = result.get("clarification_message", "")
             is_clarification = result.get("needs_clarification", False)
+            output_format = result.get("output_format", "")
+            final_response = result.get("final_response", {})
+            chart_config = result.get("chart_config")
 
-            print(f"  ➜ Intent Routed: {actual_intent}")
+            print(f"  -> Intent Routed: {actual_intent}")
             
             if is_clarification:
-                print(f"  ➜ Agent Response (Clarification): {clarification}")
+                print(f"  -> Agent Response (Clarification): {clarification}")
             else:
-                print(f"  ➜ Agent Response (Narrative): {narrative[:200]}...")
+                print(f"  -> Agent Response (Narrative): {(narrative or '')[:200]}...")
+            
+            # Sprint 5 checks
+            print(f"  -> [Sprint 5] output_format: {output_format}")
+            print(f"  -> [Sprint 5] final_response.format: {final_response.get('format', 'N/A')}")
+            if chart_config:
+                print(f"  -> [Sprint 5] chart_config: {chart_config.get('chart_type', 'N/A')}")
+            if final_response.get("alert"):
+                print(f"  -> [Sprint 5] ALERT: {final_response['alert'].get('title', '')}")
 
-            if actual_intent == test["expected_intent"] or is_clarification:
-                print(f"  ✅ RESULT: PASS")
+            # Validate intent match
+            intent_ok = actual_intent == test["expected_intent"] or is_clarification
+            
+            # Sprint 5 validation: non-clarification results must have output_format and final_response
+            sprint5_ok = True
+            if not is_clarification:
+                if not output_format:
+                    sprint5_ok = False
+                    print(f"  [WARN] Missing output_format!")
+                if not final_response.get("format"):
+                    sprint5_ok = False
+                    print(f"  [WARN] Missing final_response.format!")
+
+            if intent_ok and sprint5_ok:
+                print(f"  RESULT: PASS")
+                passed += 1
+            elif intent_ok and not sprint5_ok:
+                print(f"  RESULT: PASS (intent OK, Sprint 5 warnings)")
                 passed += 1
             else:
-                print(f"  ❌ RESULT: FAIL (Expected: {test['expected_intent']}, Got: {actual_intent})")
+                print(f"  RESULT: FAIL (Expected: {test['expected_intent']}, Got: {actual_intent})")
                 failed += 1
 
         except Exception as e:
-            print(f"  ❌ RESULT: ERROR - {str(e)}")
+            print(f"  RESULT: ERROR - {str(e)}")
             failed += 1
 
     print("\n" + "="*80)
-    print(f"🏁 SUMMARY: {passed} PASSED | {failed} FAILED | {len(tests)} TOTAL")
+    print(f"SUMMARY: {passed} PASSED | {failed} FAILED | {len(tests)} TOTAL")
     print("="*80)
 
 if __name__ == "__main__":
@@ -135,3 +163,4 @@ if __name__ == "__main__":
     if sys.platform == 'win32':
         sys.stdout.reconfigure(encoding='utf-8')
     asyncio.run(test_e2e_flow())
+

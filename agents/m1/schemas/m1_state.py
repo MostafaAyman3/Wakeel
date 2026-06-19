@@ -23,6 +23,7 @@ IntentType = Literal[
 OutputType = Literal[
     "direct_text",
     "metric_card",
+    "formatted_text_list",
     "table",
     "bar_chart",
     "line_chart",
@@ -39,7 +40,8 @@ class M1State(TypedDict, total=False):
     - Input: query, language
     - Classification: intent, intent_confidence, extracted_params
     - Data: raw_data, data_confidence
-    - Output: output_format, narrative
+    - Anomaly: anomaly_detected, anomaly_details
+    - Output: output_format, narrative, chart_config
     - Context: user_context
     - Final: final_response, error, needs_clarification, clarification_message
     """
@@ -57,9 +59,14 @@ class M1State(TypedDict, total=False):
     raw_data: list                # النتائج الخام من DB أو RAG
     data_confidence: float        # 0.0 → 1.0
 
+    # ── Anomaly Detection (Sprint 5) ──────────────────────────────
+    anomaly_detected: bool        # True → شذوذ مكتشف في البيانات
+    anomaly_details: dict         # { type, severity, title, description, recommendation }
+
     # ── Output Formatting (Sprint 5) ──────────────────────────────
-    output_format: OutputType     # direct_text | metric_card | table | bar_chart | line_chart | narrative | alert
+    output_format: OutputType     # direct_text | metric_card | formatted_text_list | table | bar_chart | line_chart | narrative | alert
     narrative: str                # التحليل اللغوي المُولَّد
+    chart_config: dict            # Chart config for frontend (Sprint 6) — { chart_type, x_axis, y_axis, title, series }
 
     # ── Context ───────────────────────────────────────────────────
     user_context: dict            # اختياري — { user_id, role, permissions } من الـ JWT

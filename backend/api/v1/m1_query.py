@@ -78,7 +78,6 @@ async def handle_query(
             "extracted_params": {},
             "raw_data": [],
             "data_confidence": 0.0,
-            "output_format": "direct_text",
             "narrative": "",
             "final_response": {},
             "error": "",

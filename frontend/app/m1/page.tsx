@@ -1,5 +1,12 @@
-﻿// PLACEHOLDER — Architecture prepared. Implementation required.
-// M1 Chat Interface page. Bilingual (AR/EN) chat with conversation history. Renders output via: MetricCard, SortableTable, LineChart, BarChart, AlertCard, NarrativeText. Uses useM1Query hook. Calls POST /api/v1/query.
+import type { Metadata } from "next";
+import { ChatInterface } from "@/components/chat/ChatInterface";
 
-export default function PlaceholderPage() { return null; }
+export const metadata: Metadata = {
+  title: "Wakeel — AI Financial Analyst",
+  description:
+    "Ask questions about sales, invoices, customers, and taxes in Arabic or English. Powered by LangGraph AI agent.",
+};
 
+export default function M1Page() {
+  return <ChatInterface />;
+}

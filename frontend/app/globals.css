@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Google Fonts ─────────────────────────────────────────── */
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+
+/* ── Base ─────────────────────────────────────────────────── */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-midnight text-ivory font-inter;
+    min-height: 100vh;
+  }
+
+  /* RTL support */
+  [dir="rtl"] body {
+    @apply font-cairo;
+  }
+
+  /* Scrollbar styling for dark theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-midnight;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-light;
+  }
+}
+
+/* ── Components ───────────────────────────────────────────── */
+@layer components {
+  /* Gold left border — signature element for AI-generated content */
+  .card-gold-border {
+    @apply border-l-2 border-gold pl-4;
+  }
+
+  [dir="rtl"] .card-gold-border {
+    @apply border-l-0 border-r-2 border-gold pl-0 pr-4;
+  }
+
+  /* Agent avatar pulse */
+  .agent-pulse {
+    @apply animate-pulse-gold rounded-full;
+  }
+
+  /* Card base */
+  .card-base {
+    @apply bg-surface rounded-lg border border-slate p-4;
+  }
+
+  /* Alert severity variants */
+  .alert-critical {
+    @apply border-danger animate-pulse-border;
+  }
+
+  .alert-warning {
+    @apply border-warning;
+  }
+
+  /* Chat bubble base */
+  .bubble-user {
+    @apply bg-gold/10 border border-gold/20 rounded-2xl rounded-br-sm px-4 py-3;
+  }
+
+  [dir="rtl"] .bubble-user {
+    @apply rounded-2xl rounded-bl-sm;
+  }
+
+  .bubble-agent {
+    @apply bg-surface border border-slate rounded-2xl rounded-bl-sm px-4 py-3;
+  }
+
+  [dir="rtl"] .bubble-agent {
+    @apply rounded-2xl rounded-br-sm;
+  }
+
+  /* Input field */
+  .input-field {
+    @apply w-full bg-surface border border-slate rounded-xl px-4 py-3
+           text-ivory placeholder:text-slate-light
+           focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/30
+           transition-colors duration-200;
+  }
+
+  /* Button base */
+  .btn-primary {
+    @apply bg-gold text-midnight font-semibold px-4 py-2 rounded-lg
+           hover:bg-gold-light active:bg-gold-dim
+           disabled:opacity-40 disabled:cursor-not-allowed
+           transition-colors duration-150;
+  }
+
+  .btn-ghost {
+    @apply text-ivory/60 hover:text-ivory hover:bg-surface
+           px-3 py-2 rounded-lg transition-colors duration-150;
+  }
+}
