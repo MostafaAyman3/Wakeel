@@ -38,6 +38,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         version=settings.app_version,
         env=settings.app_env,
     )
+
+    # ── Log LangSmith tracing status ─────────────────────────────
+    import os
+    tracing_on = os.environ.get("LANGCHAIN_TRACING_V2", "").lower() == "true"
+    ls_project = os.environ.get("LANGCHAIN_PROJECT", "default")
+    ls_key_set = bool(os.environ.get("LANGCHAIN_API_KEY", ""))
+    if tracing_on and ls_key_set:
+        logger.info(
+            "langsmith_tracing_enabled",
+            project=ls_project,
+            endpoint=os.environ.get("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com"),
+        )
+    else:
+        logger.warning(
+            "langsmith_tracing_disabled",
+            tracing_v2=tracing_on,
+            api_key_set=ls_key_set,
+        )
+
     yield
     # Gracefully close all DB pool connections on shutdown
     await engine.dispose()

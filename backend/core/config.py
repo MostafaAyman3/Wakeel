@@ -1,16 +1,25 @@
 """
 Application configuration using Pydantic Settings.
 Reads all values from environment variables / .env file.
+
+NOTE: load_dotenv() is called at module level so that LANGCHAIN_*
+env vars are present in os.environ BEFORE LangChain/LangGraph
+import-time checks (they don't read pydantic Settings).
 """
 
 from functools import lru_cache
 from pathlib import Path
+
+from dotenv import load_dotenv
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Project root = 2 levels up from backend/core/config.py
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _ENV_FILE = _PROJECT_ROOT / ".env"
+
+# ── Inject .env into os.environ (for LangChain / LangSmith) ─────
+load_dotenv(_ENV_FILE, override=False)
 
 
 class Settings(BaseSettings):

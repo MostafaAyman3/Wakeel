@@ -90,8 +90,19 @@ async def handle_query(
             },
         }
 
-        # ── Run the graph ─────────────────────────────────────
-        result: dict = await m1_graph.ainvoke(initial_state)
+        # ── Run the graph (with LangSmith tracing config) ────────
+        result: dict = await m1_graph.ainvoke(
+            initial_state,
+            config={
+                "run_name": "wakeel-m1-query",
+                "metadata": {
+                    "user_id": user.user_id,
+                    "language": request.language,
+                    "query_preview": request.query[:120],
+                },
+                "tags": ["m1", "query", request.language],
+            },
+        )
 
         # ── Extract final response ────────────────────────────
         final_response: dict = result.get("final_response", {})
