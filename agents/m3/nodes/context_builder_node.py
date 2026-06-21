@@ -93,11 +93,12 @@ def build_context(state: M3State) -> dict:
     order = fetched.get("order")
     customer_name = None
 
-    # Try to derive customer name from available data
-    if invoice and invoice.get("customer_id"):
-        customer_name = f"Customer ({invoice['customer_id'][:8]}...)"
-    if order and order.get("customer_id"):
-        customer_name = f"Customer ({order['customer_id'][:8]}...)"
+    # Prefer the real customer name (available from invoice/order joins);
+    # fall back to a generic label only if no name was fetched.
+    if invoice and invoice.get("customer_name"):
+        customer_name = invoice["customer_name"]
+    elif order and order.get("customer_name"):
+        customer_name = order["customer_name"]
 
     context = {
         "customer_name": customer_name or "Customer",

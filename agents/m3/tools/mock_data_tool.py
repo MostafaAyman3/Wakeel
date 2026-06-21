@@ -31,6 +31,7 @@ logger = get_logger(__name__)
 _ORDER_COLS = """
     o.display_id        AS display_id,
     c.display_id        AS customer_id,
+    c.name              AS customer_name,
     o.status            AS status,
     o.order_date        AS created_at,
     o.estimated_delivery AS estimated_delivery,

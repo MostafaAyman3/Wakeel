@@ -561,9 +561,18 @@ The following are NOT architecture tasks — they are implementation tasks for t
 - [x] Implement ResponseGeneratorNode + Graceful Degradation + Repeat-Issue Detection (Sprint 3)
 - [x] Implement HumanReviewGateNode + EscalationNode + Audit Trail logging (Sprint 4)
 
-### M3 — Sprint 5-6
-- [ ] Frontend: Customer Input Interface + Human Review Interface
-- [ ] 4 demo scenarios tested end-to-end
+### M3 — Sprint 5
+- [x] Backend demo auth: POST /api/v1/auth/login (JWT) — `backend/api/v1/auth.py`
+- [x] Frontend infra (Next.js): config, globals, layout, `@/` alias, api client, types
+- [x] Customer Input Interface — `frontend/components/m3/CustomerInputForm.tsx`
+- [x] Human Review Interface (draft edit + transparency + confidence + approve/reject/escalate) — `frontend/components/m3/HumanReviewPanel.tsx` + ConfidenceIndicator/TransparencyPanel/EscalationView
+- [x] Page wiring (customer + agent tabs) — `frontend/app/m3/page.tsx`; hook `frontend/hooks/useM3Support.ts`
+- [x] Audit logging made best-effort in review actions (no 500 on transient DB hiccup)
+- [x] **Sprint 5 COMPLETE** ✅ — `npm run build` passes; E2E HTTP flow (login→support→approve/reject/escalate) green. Detail: `docs/progress/agent_execution_log_m3s5.md`
+
+### M3 — Sprint 6 (remaining)
+- [ ] Integration polish + 4 demo scenarios scripted end-to-end
+- [ ] (optional) Supervisor escalation queue view
 
 ---
 

@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --ink: #15211f;
+    --sand: #ecefec;
+  }
+
+  body {
+    background-color: var(--sand);
+    color: var(--ink);
+    font-family: Inter, system-ui, sans-serif;
+    /* Subtle desk grain so the pale ground isn't flat. */
+    background-image:
+      radial-gradient(circle at 0% 0%, rgba(15, 82, 87, 0.05), transparent 38%),
+      radial-gradient(circle at 100% 0%, rgba(216, 138, 43, 0.05), transparent 34%);
+    background-attachment: fixed;
+  }
+
+  /* Reference codes, confidence values, tracking numbers — set in mono. */
+  .code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: rgba(216, 138, 43, 0.28);
+  }
+
+  *:focus-visible {
+    outline: 2px solid #0f5257;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  /* Signature: confidence "signal" — 5 stacked segments like signal strength. */
+  .signal-seg {
+    height: 0.5rem;
+    border-radius: 2px;
+    transform-origin: bottom;
+    transition: background-color 0.2s ease;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

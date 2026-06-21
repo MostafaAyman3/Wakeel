@@ -6,6 +6,17 @@ from backend.services.audit_service import log_decision
 logger = get_logger(__name__)
 
 
+async def _safe_log(**kwargs) -> None:
+    """Best-effort audit write — a transient DB failure must never break the
+    agent's review action (matches the escalation_node pattern)."""
+    try:
+        await log_decision(**kwargs)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("review_audit_failed", error=str(exc), **{
+            k: kwargs.get(k) for k in ("case_id", "action_taken")
+        })
+
+
 async def approve_response(
     case_id: str,
     draft_response: str,
@@ -20,7 +31,7 @@ async def approve_response(
     Returns:
         Dict with ``case_id``, ``action``, and ``final_response``.
     """
-    await log_decision(
+    await _safe_log(
         case_id=case_id,
         issue_type=issue_type,
         confidence_score=confidence_score,
@@ -53,7 +64,7 @@ async def reject_response(
     Returns:
         Dict with ``case_id``, ``action``, and ``rejection_context``.
     """
-    await log_decision(
+    await _safe_log(
         case_id=case_id,
         issue_type=issue_type,
         confidence_score=confidence_score,
@@ -88,7 +99,7 @@ async def escalate_manually(
     Returns:
         Dict with ``case_id``, ``action``, and ``escalation_reason``.
     """
-    await log_decision(
+    await _safe_log(
         case_id=case_id,
         issue_type=issue_type,
         confidence_score=confidence_score,
