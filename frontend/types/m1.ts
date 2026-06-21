@@ -40,6 +40,7 @@ export interface QueryResponse {
   alert: AlertPayload | null;
   disclaimer: string | null;
   metadata?: Record<string, unknown> | null;
+  session_id?: string | null; // echoed back by backend for session continuity
 }
 
 export interface ChatMessage {

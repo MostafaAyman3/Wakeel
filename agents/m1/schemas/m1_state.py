@@ -49,6 +49,8 @@ class M1State(TypedDict, total=False):
     # ── Input ──────────────────────────────────────────────────────
     query: str                    # Original user query (AR or EN)
     language: Literal["ar", "en"] # auto-detect من النص
+    session_id: str               # UUID — يربط المحادثة بجدول conversations
+    chat_history: list            # آخر N رسائل: [{role, content}] من conversations
 
     # ── Intent Classification (Sprint 1) ──────────────────────────
     intent: IntentType            # financial_query | operational_query | invoice_analysis | tax_reasoning | clarification_needed

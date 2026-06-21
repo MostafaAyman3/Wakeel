@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 from pydantic import BaseModel, Field
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from agents.shared.llm_client import llm_fast
 from agents.m1.schemas.m1_state import M1State
@@ -78,20 +78,38 @@ async def classify_intent(state: M1State) -> dict:
 
     • Uses ``llm_fast`` (GPT-4o-mini) with structured output.
     • Auto-detects language when ``language`` is absent or ``"auto"``.
+    • Injects ``chat_history`` as prior turns for multi-turn context.
     • Falls back to ``clarification_needed`` on any LLM error.
     """
     query: str = state["query"]
     language: str = state.get("language", "") or ""
+    chat_history: list = state.get("chat_history", [])
 
-    # ── Auto-detect language ──────────────────────────────────
+    # ── Auto-detect language ────────────────────────────
     if not language or language == "auto":
         language = detect_language(query)
 
-    # ── Build LLM messages ────────────────────────────────────
-    messages = [
-        SystemMessage(content=INTENT_CLASSIFIER_SYSTEM_PROMPT),
-        HumanMessage(content=f"User query: {query}\nDetected language: {language}"),
-    ]
+    # ── Build LLM messages ────────────────────────────
+    # Start with the system prompt, then inject prior conversation
+    # turns (up to last 6 messages) so the LLM can resolve pronouns
+    # and relative references (e.g. "قارنه", "same year").
+    messages = [SystemMessage(content=INTENT_CLASSIFIER_SYSTEM_PROMPT)]
+
+    # Inject history — role mapping: "user" → HumanMessage, anything else → AIMessage
+    for turn in chat_history[-6:]:
+        role = turn.get("role", "user")
+        content = turn.get("content", "")
+        if not content:
+            continue
+        if role == "user":
+            messages.append(HumanMessage(content=f"[previous turn] {content}"))
+        else:
+            messages.append(AIMessage(content=f"[previous turn] {content}"))
+
+    # Current query (the one to classify)
+    messages.append(
+        HumanMessage(content=f"User query: {query}\nDetected language: {language}")
+    )
 
     # ── Call LLM with structured output ───────────────────────
     # Use method="function_calling" because OpenAI's strict structured

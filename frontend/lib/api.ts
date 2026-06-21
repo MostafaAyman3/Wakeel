@@ -14,13 +14,15 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 /**
  * Send a natural-language query to the M1 agent.
  *
- * @param query  User question (Arabic or English)
- * @param language  "ar" | "en" | "auto"
+ * @param query      User question (Arabic or English)
+ * @param language   "ar" | "en" | "auto"
+ * @param sessionId  Optional UUID to link to an ongoing conversation
  * @returns QueryResponse from the backend
  */
 export async function queryM1(
   query: string,
   language: string = "auto",
+  sessionId?: string,
 ): Promise<QueryResponse> {
   const token = await getAuthToken();
 
@@ -31,7 +33,7 @@ export async function queryM1(
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ query, language }),
+      body: JSON.stringify({ query, language, session_id: sessionId ?? null }),
     });
 
     if (!res.ok) {

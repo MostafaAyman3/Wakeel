@@ -2,13 +2,17 @@
 M1 Intelligence Agent API router.
 
 Endpoint: POST /api/v1/query
-Accepts:  { query: str, language: "ar" | "en" | "auto" }
+Accepts:  { query: str, language: "ar" | "en" | "auto", session_id?: str }
 Returns:  QueryResponse — always JSON, never HTTP exceptions for agent errors.
 
 Wired to ``m1_graph`` (LangGraph StateGraph) since Sprint 1.
+Multi-turn context (Sprint 6+): uses the ``conversations`` table to persist
+and retrieve conversation history per session.
 """
 
 from __future__ import annotations
+
+import uuid
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -32,6 +36,13 @@ class QueryRequest(BaseModel):
             "the query text (Arabic Unicode range check)."
         ),
     )
+    session_id: str | None = Field(
+        default=None,
+        description=(
+            "Optional UUID to link this query to an ongoing conversation. "
+            "If omitted, a new session is created automatically."
+        ),
+    )
 
 
 class QueryResponse(BaseModel):
@@ -42,6 +53,7 @@ class QueryResponse(BaseModel):
     alert: dict | None = None
     disclaimer: str | None = None
     metadata: dict | None = None
+    session_id: str | None = None  # Echo back so the frontend can persist it
 
 
 # ── Endpoint ─────────────────────────────────────────────────────
@@ -53,26 +65,41 @@ async def handle_query(
 ) -> QueryResponse:
     """Process a natural language ERP query through the M1 agent graph.
 
+    Multi-turn flow:
+        1. Resolve (or create) a session_id.
+        2. Load recent conversation history from ``conversations`` table.
+        3. Invoke m1_graph with history injected into state.
+        4. Save user message + agent response to ``conversations`` table.
+
     Error strategy (per user spec): agent errors are returned as
     ``QueryResponse(format="error", narrative="…")`` — never as HTTP
     exceptions. This keeps the frontend contract stable.
     """
+    # ── Resolve session ───────────────────────────────────────────
+    session_id: str = request.session_id or str(uuid.uuid4())
+
     logger.info(
         "query_received",
         user_id=user.user_id,
         language=request.language,
         query_length=len(request.query),
+        session_id=session_id,
     )
 
     try:
-        # Lazy import — avoids circular imports and heavy LLM init
-        # at module-load time.
+        # Lazy imports — avoids circular imports and heavy LLM init at module-load time
         from agents.m1.graphs.m1_graph import m1_graph
+        from backend.services.conversation_service import get_recent_messages, save_message
 
-        # ── Build initial state with all defaults ─────────────
+        # ── 1. Load conversation history ──────────────────────────
+        chat_history = await get_recent_messages(session_id, limit=6)
+
+        # ── 2. Build initial state ────────────────────────────────
         initial_state: dict = {
             "query": request.query,
             "language": request.language,          # "auto" → classifier detects
+            "session_id": session_id,
+            "chat_history": chat_history,
             "intent": "",
             "intent_confidence": 0.0,
             "extracted_params": {},
@@ -90,7 +117,7 @@ async def handle_query(
             },
         }
 
-        # ── Run the graph (with LangSmith tracing config) ────────
+        # ── 3. Run the graph (with LangSmith tracing config) ────────
         result: dict = await m1_graph.ainvoke(
             initial_state,
             config={
@@ -98,14 +125,16 @@ async def handle_query(
                 "metadata": {
                     "user_id": user.user_id,
                     "language": request.language,
+                    "session_id": session_id,
                     "query_preview": request.query[:120],
                 },
                 "tags": ["m1", "query", request.language],
             },
         )
 
-        # ── Extract final response ────────────────────────────
+        # ── 4. Extract final response ─────────────────────────────
         final_response: dict = result.get("final_response", {})
+        narrative: str = final_response.get("narrative", "")
 
         logger.info(
             "query_completed",
@@ -113,16 +142,37 @@ async def handle_query(
             intent=result.get("intent", "unknown"),
             confidence=result.get("intent_confidence", 0.0),
             response_format=final_response.get("format", "unknown"),
+            session_id=session_id,
+        )
+
+        # ── 5. Persist conversation turns ─────────────────────────
+        # Save user message
+        await save_message(
+            session_id=session_id,
+            role="user",
+            content=request.query,
+            metadata={"language": request.language},
+        )
+        # Save agent response (save the narrative as the content for future context)
+        await save_message(
+            session_id=session_id,
+            role="assistant",
+            content=narrative,
+            metadata={
+                "intent": result.get("intent", ""),
+                "format": final_response.get("format", ""),
+            },
         )
 
         return QueryResponse(
             format=final_response.get("format", "direct_text"),
             data=final_response.get("data"),
             chart_config=final_response.get("chart_config"),
-            narrative=final_response.get("narrative"),
+            narrative=narrative,
             alert=final_response.get("alert"),
             disclaimer=final_response.get("disclaimer"),
             metadata=final_response.get("metadata"),
+            session_id=session_id,
         )
 
     except Exception as exc:
@@ -143,4 +193,8 @@ async def handle_query(
             else f"An error occurred while processing your query: {exc}"
         )
 
-        return QueryResponse(format="error", narrative=error_narrative)
+        return QueryResponse(
+            format="error",
+            narrative=error_narrative,
+            session_id=session_id,
+        )

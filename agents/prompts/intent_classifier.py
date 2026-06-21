@@ -84,6 +84,10 @@ Extract ANY of these when mentioned (use null for unmentioned ones):
 • date_range       — {"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}
                      Interpret relative dates: "الشهر ده" = current month,
                      "الربع الأول" = Q1 of current year, "last quarter", etc.
+                     ⚠ IMPORTANT: In follow-up queries, "نفس السنة" / "same year"
+                     means the YEAR from conversation history, NOT the current
+                     calendar year. E.g., if the user previously asked about
+                     Q2-2024, then "الربع الأول من نفس السنة" = Q1 of 2024.
 • customer_id      — display_id string (e.g. "CUST-001") or customer name
 • vendor_id        — display_id string (e.g. "VND-001") or vendor name
 • product_category — category name (AR or EN)
@@ -92,6 +96,10 @@ Extract ANY of these when mentioned (use null for unmentioned ones):
 • order_status     — "Pending" | "Confirmed" | "Shipped" | "Delivered" | "Cancelled"
 • limit            — integer for "top N" / "أعلى N" / "أكتر N" queries
 • comparison       — true if comparing two periods or categories
+                     When comparison is true, also extract TWO date ranges
+                     as compare_range: {"start": "...", "end": "..."}.
+                     The main date_range holds the "base" period, and
+                     compare_range holds the period to compare against.
 • amount           — float for specific monetary amounts
 • aging_days       — integer for overdue/aging queries (30, 60, 90)
 • sort_order       — "asc" | "desc"
@@ -108,4 +116,21 @@ RULES
    will ask for clarification automatically.
 4. Extract ALL identifiable parameters; omit keys you cannot determine.
 5. Always respond in valid JSON matching the schema.
+6. **CRITICAL — Resolve ambiguous references using conversation history:**
+   If the current query contains pronouns or relative references (e.g., Arabic:
+   "قارنه", "نفس السنة", "منه", "دول", "فيه"; English: "compare it", "that period",
+   "same year", "them", "those"), use the conversation history to resolve
+   what entity/period/filter is being referenced, then extract the full
+   params as if the user had stated them explicitly.
+
+   EXAMPLE:
+     History: user asked "إيه إجمالي المبيعات في الربع الثاني من 2024؟"
+     Current: "قارنه بالربع الأول من نفس السنة"
+     → intent: financial_query
+     → extracted_params: {
+         comparison: true,
+         date_range: {start: "2024-04-01", end: "2024-06-30"},
+         compare_range: {start: "2024-01-01", end: "2024-03-31"}
+       }
+     Note: "نفس السنة" = 2024 (from history), NOT the current calendar year.
 """

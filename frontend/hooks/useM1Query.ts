@@ -11,6 +11,13 @@
  *   sendMessage   – send a query to the agent
  *   clearHistory  – reset conversation
  *   setLanguage   – switch language
+ *
+ * Multi-turn context:
+ *   A sessionId (UUID) is generated on the first message and reused
+ *   for all subsequent messages in the same chat window. It is sent
+ *   to the backend so conversation turns are persisted in the
+ *   `conversations` table, enabling the agent to resolve follow-up
+ *   references like "قارنه" or "نفس السنة".
  * ───────────────────────────────────────────────────────────── */
 
 import { useState, useCallback } from "react";
@@ -22,11 +29,22 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function generateSessionId(): string {
+  // Use crypto.randomUUID() if available (all modern browsers), else fallback
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
 export function useM1Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [language, setLanguage] = useState<"ar" | "en">("ar");
   const [error, setError] = useState<string | null>(null);
+  // sessionId is null until the first message — generated lazily so each
+  // fresh chat window starts a new conversation.
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const sendMessage = useCallback(
     async (query: string) => {
@@ -36,6 +54,12 @@ export function useM1Chat() {
 
       // Detect language from query text
       const detectedLang = isArabic(query) ? "ar" : "en";
+
+      // Resolve session: reuse existing or generate a new one now
+      const currentSessionId = sessionId ?? generateSessionId();
+      if (!sessionId) {
+        setSessionId(currentSessionId);
+      }
 
       // Add user message
       const userMsg: ChatMessage = {
@@ -50,7 +74,16 @@ export function useM1Chat() {
       setIsLoading(true);
 
       try {
-        const response: QueryResponse = await queryM1(query.trim(), detectedLang);
+        const response: QueryResponse = await queryM1(
+          query.trim(),
+          detectedLang,
+          currentSessionId,
+        );
+
+        // Backend echoes session_id back — sync in case it was auto-generated server-side
+        if (response.session_id && response.session_id !== currentSessionId) {
+          setSessionId(response.session_id);
+        }
 
         // Add agent response
         const agentMsg: ChatMessage = {
@@ -90,12 +123,13 @@ export function useM1Chat() {
         setIsLoading(false);
       }
     },
-    [isLoading],
+    [isLoading, sessionId],
   );
 
   const clearHistory = useCallback(() => {
     setMessages([]);
     setError(null);
+    setSessionId(null); // Reset session — next message starts a new conversation
   }, []);
 
   return {

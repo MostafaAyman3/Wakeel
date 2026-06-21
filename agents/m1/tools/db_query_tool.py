@@ -199,7 +199,14 @@ def validate_sql(query_str: str) -> bool:
         return False
 
 async def db_query_tool(state: M1State) -> dict:
-    """Executes the exact requested dynamic SQL template on the read-only DB."""
+    """Executes the exact requested dynamic SQL template on the read-only DB.
+
+    Comparison support (Sprint 6+):
+        When extracted_params contains ``comparison: true`` and
+        ``compare_range: {start, end}``, the same template is executed twice
+        (once for the base date_range, once for compare_range) and the results
+        are merged with a ``period`` label for downstream bar_chart rendering.
+    """
     query = state.get("query", "")
     extracted_params = state.get("extracted_params", {})
     
@@ -256,21 +263,79 @@ async def db_query_tool(state: M1State) -> dict:
         "multiplier": selection.multiplier
     }
 
+    # ── Comparison mode ───────────────────────────────────────────
+    # If the intent classifier extracted comparison: true + compare_range,
+    # run the query twice and merge results with period labels.
+    is_comparison = extracted_params.get("comparison", False)
+    compare_range = extracted_params.get("compare_range")
+
+    if is_comparison and compare_range and isinstance(compare_range, dict):
+        compare_start = parse_date(compare_range.get("start", "2000-01-01"))
+        compare_end = parse_date(compare_range.get("end", "2100-01-01"))
+
+        # Helper to label a date range as "Q1-2024" or "Jan-Mar 2024"
+        def label_period(s, e):
+            q_map = {1: "Q1", 4: "Q2", 7: "Q3", 10: "Q4"}
+            q = q_map.get(s.month, f"M{s.month}")
+            return f"{q}-{s.year}"
+
+        base_label = label_period(start_dt, end_dt)
+        compare_label = label_period(compare_start, compare_end)
+
+        try:
+            async with get_readonly_session() as session:
+                # Base period
+                result1 = await session.execute(final_sql, params)
+                rows1 = [dict(r) for r in result1.mappings().fetchall()]
+
+                # Comparison period
+                compare_params = {**params, "start_date": compare_start, "end_date": compare_end}
+                result2 = await session.execute(final_sql, compare_params)
+                rows2 = [dict(r) for r in result2.mappings().fetchall()]
+
+            # Merge results with period labels
+            results = []
+            for r in rows1:
+                _format_dates(r)
+                r["period"] = base_label
+                results.append(r)
+            for r in rows2:
+                _format_dates(r)
+                r["period"] = compare_label
+                results.append(r)
+
+            logger.info(
+                "db_query_tool: comparison query executed",
+                template=tid,
+                base_period=base_label,
+                compare_period=compare_label,
+                base_rows=len(rows1),
+                compare_rows=len(rows2),
+            )
+
+        except Exception as e:
+            logger.error("DB Comparison execution failed", error=str(e), template=tid)
+            return {"error": f"Database error: {str(e)}", "raw_data": []}
+
+        return {
+            "raw_data": results,
+            "extracted_params": {
+                **extracted_params,
+                "applied_template": tid,
+                "db_params": params,
+                "compare_params": compare_params,
+            }
+        }
+
+    # ── Standard (non-comparison) mode ────────────────────────────
     results = []
     try:
         async with get_readonly_session() as session:
             result = await session.execute(final_sql, params)
             rows = result.mappings().fetchall()
-            # Convert rows (asyncpg/sqlalchemy RowMappings) to list of pure dicts
             results = [dict(r) for r in rows]
-            
-            # Format datetime/date objects to strings for JSON serialization downstream
             for r in results:
-                for k, v in r.items():
-                    if isinstance(v, datetime):
-                        r[k] = v.isoformat()
-                    elif hasattr(v, "isoformat"):
-                        r[k] = v.isoformat()
+                _format_dates(r)
                         
     except Exception as e:
         logger.error("DB Execution failed", error=str(e), template=tid)
@@ -287,3 +352,13 @@ async def db_query_tool(state: M1State) -> dict:
             "db_params": params
         }
     }
+
+
+def _format_dates(row: dict) -> None:
+    """Convert datetime/date objects in a row dict to ISO strings for JSON."""
+    for k, v in row.items():
+        if isinstance(v, datetime):
+            row[k] = v.isoformat()
+        elif hasattr(v, "isoformat"):
+            row[k] = v.isoformat()
+

@@ -552,6 +552,23 @@ Result: SUCCESS — M1 Sprint 6 COMPLETE
 
 ---
 
+## Step 27
+
+Time: 2026-06-21
+Action: Implemented M1 Multi-turn context resolution and LangSmith trace-based fixes
+Reason: Context was failing for follow-up questions (e.g., "قارنه بالربع الأول من نفس السنة") because chat history was not persisted or loaded into the intent classifier correctly. LangSmith trace analysis revealed empty history, incorrect date resolution, and missing comparison logic in DB tool.
+Files created/modified:
+- agents/m1/schemas/m1_state.py — Added `session_id` and `chat_history`.
+- agents/prompts/intent_classifier.py — Added history reference logic for ambiguous pronouns and follow-up date resolution rules.
+- agents/m1/nodes/intent_classifier_node.py — Prepended previous turns as `HumanMessage` and `AIMessage` with `[previous turn]` tag.
+- backend/services/conversation_service.py — Implemented `save_message` and `get_recent_messages` to read/write to the `conversations` table. Fixed asyncpg jsonb cast syntax (`CAST(:metadata AS jsonb)`).
+- backend/api/v1/m1_query.py — Orchestrated history fetching before graph execution and message saving after.
+- frontend/hooks/useM1Query.ts, frontend/lib/api.ts, frontend/types/m1.ts — Client-side session ID generation and payload update.
+- agents/m1/tools/db_query_tool.py — Added comparison support: runs queries twice for `date_range` and `compare_range` and merges results with period labels for charts.
+Result: SUCCESS — Follow-up queries now resolve context accurately and comparisons render natively on charts.
+
+---
+
 ## Remaining Work (for implementation phase)
 
 The following are NOT architecture tasks — they are implementation tasks for the development team:
