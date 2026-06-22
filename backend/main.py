@@ -22,6 +22,8 @@ from backend.core.database import engine, readonly_engine
 from backend.core.logging import configure_logging, get_logger
 from backend.middleware.error_handler import error_handler_middleware
 from backend.api.v1.m1_query import router as m1_router
+from backend.api.v1.m2_inventory import router as m2_inventory_router
+from backend.api.v1.m2_analyze import router as m2_analyze_router
 from backend.api.v1.m3_support import router as m3_router
 
 settings = get_settings()
@@ -87,6 +89,8 @@ app.add_middleware(
 
 # API routers
 app.include_router(m1_router, prefix="/api/v1")
+app.include_router(m2_inventory_router, prefix="/api/v1")
+app.include_router(m2_analyze_router, prefix="/api/v1")
 app.include_router(m3_router, prefix="/api/v1")
 
 
