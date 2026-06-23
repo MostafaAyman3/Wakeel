@@ -11,8 +11,15 @@ Fix: replace the SQLAlchemy engines with NullPool engines before the app is
 imported.  NullPool creates a fresh connection for each use and closes it
 immediately — no pooling, no cross-loop reuse, no pre-ping needed.
 
-This is the standard approach for async SQLAlchemy integration tests.
+LangSmith tracing is disabled for tests to prevent background threads from
+writing to pytest's already-closed log streams (ValueError: I/O on closed file).
 """
+
+import os
+
+# Disable LangSmith before any LangChain/LangGraph import.
+# This stops background tracing threads that cause "I/O on closed file" at exit.
+os.environ["LANGCHAIN_TRACING_V2"] = "false"
 
 import pytest
 from unittest.mock import patch
