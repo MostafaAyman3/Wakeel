@@ -68,8 +68,8 @@ CREATE TABLE IF NOT EXISTS inventory_alerts (
 
     -- The RFQ created in response to this alert (set after Sprint 2).
     -- NULL until an RFQ is generated.
-    rfq_id      UUID        REFERENCES rfqs(id) ON DELETE SET NULL
-        DEFERRABLE INITIALLY DEFERRED,
+    -- FK to rfqs is added in migration 002 (after rfqs table is created).
+    rfq_id      UUID,
 
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()

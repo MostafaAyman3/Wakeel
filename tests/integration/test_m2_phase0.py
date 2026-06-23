@@ -1,46 +1,53 @@
 import pytest
 import sys
-import os
 from pathlib import Path
 
 # Add the project root to sys.path so 'backend' can be imported
-sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from fastapi.testclient import TestClient
+from httpx import AsyncClient, ASGITransport
 from backend.main import app
 
-client = TestClient(app)
 
-def test_m2_inventory_endpoint():
+# ── Tests ─────────────────────────────────────────────────────────
+
+@pytest.mark.anyio
+async def test_m2_inventory_endpoint():
     """
-    Test the GET /api/v1/m2/inventory endpoint.
-    It should return a 200 OK and include 'products', 'summary', and 'alerts'.
+    GET /api/v1/m2/inventory should return 200 with products, summary, alerts.
     """
-    response = client.get("/api/v1/m2/inventory")
-    assert response.status_code == 200
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/api/v1/m2/inventory")
+
+    assert response.status_code == 200, (
+        f"Expected 200, got {response.status_code}. Body: {response.text[:300]}"
+    )
     data = response.json()
-    assert "products" in data
-    assert "summary" in data
-    assert "alerts" in data
-    
-def test_m2_analyze_endpoint():
+    assert "products" in data, "Response missing 'products' key"
+    assert "summary" in data, "Response missing 'summary' key"
+    assert isinstance(data["products"], list)
+
+
+@pytest.mark.anyio
+async def test_m2_analyze_endpoint():
     """
-    Test the POST /api/v1/m2/analyze endpoint.
-    It triggers the M2 LangGraph pipeline and returns alerts, RFQs, etc.
+    POST /api/v1/m2/analyze should return 200 with scan_summary, alerts, rfq_drafts.
     """
-    payload = {
-        "trigger_source": "manual",
-        "language": "en"
-    }
-    response = client.post("/api/v1/m2/analyze", json=payload)
-    assert response.status_code == 200
+    payload = {"trigger_source": "manual", "language": "en"}
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post("/api/v1/m2/analyze", json=payload)
+
+    assert response.status_code == 200, (
+        f"Expected 200, got {response.status_code}. Body: {response.text[:300]}"
+    )
     data = response.json()
     assert "scan_summary" in data
     assert "alerts" in data
     assert "rfq_drafts" in data
     assert "language" in data
     assert data["language"] == "en"
-
-if __name__ == "__main__":
-    pytest.main(["-v", __file__])
-

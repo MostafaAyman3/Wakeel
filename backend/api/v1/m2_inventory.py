@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Any
 
-from backend.core.database import get_db_session
+from backend.core.database import get_db_session_dep
 from backend.schemas.m2_inventory import InventoryStatusResponse, InventoryProductStatus, InventorySummary
 from agents.m2.tools.inventory_tools import fetch_inventory_status
 from agents.m2.nodes.inventory_check_node import SLOW_MOVING_THRESHOLD, NEAR_EXPIRY_WINDOW, MIN_AVG_DAILY_SALES
@@ -11,7 +11,7 @@ from datetime import date, timedelta
 router = APIRouter(prefix="/m2/inventory", tags=["M2 Inventory"])
 
 @router.get("", response_model=InventoryStatusResponse)
-async def get_inventory_status(session: AsyncSession = Depends(get_db_session)) -> Any:
+async def get_inventory_status(session: AsyncSession = Depends(get_db_session_dep)) -> Any:
     """
     Returns current inventory status for all active products.
     Evaluates detection scenarios on the fly (low_stock, predicted_shortage, slow_moving, near_expiry).

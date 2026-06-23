@@ -87,7 +87,13 @@ CREATE INDEX IF NOT EXISTS idx_rfqs_thread_id
     ON rfqs(thread_id)
     WHERE thread_id IS NOT NULL;
 
--- ── 4. Auto-update updated_at ─────────────────────────────────────
+-- ── 4. Add the FK from inventory_alerts → rfqs (now that rfqs exists) ───────
+ALTER TABLE inventory_alerts
+    ADD CONSTRAINT IF NOT EXISTS fk_inventory_alerts_rfq
+    FOREIGN KEY (rfq_id) REFERENCES rfqs(id) ON DELETE SET NULL
+    DEFERRABLE INITIALLY DEFERRED;
+
+-- ── 5. Auto-update updated_at ─────────────────────────────────────
 DROP TRIGGER IF EXISTS trg_rfqs_updated_at ON rfqs;
 CREATE TRIGGER trg_rfqs_updated_at
     BEFORE UPDATE ON rfqs
