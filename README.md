@@ -1,4 +1,4 @@
-# Wakeel (وكيل) - ERP Agentic AI Platform
+# Wakeel (وكيل) - ERP Agentic AI Platform (v2.0)
 
 Wakeel is a comprehensive Agentic AI platform built on top of ERP data. It leverages Large Language Models (GPT-4o / GPT-4o-mini), LangGraph for orchestration, and a modern web stack to provide intelligent insights, proactive anomaly detection, and interactive bilingual (Arabic/English) chat interfaces.
 
@@ -8,7 +8,100 @@ Wakeel is a comprehensive Agentic AI platform built on top of ERP data. It lever
 - **M2 (Procurement Agent)**: Deferred for future iterations.
 - **M3 (Customer Support Agent)**: Sprint 0 completed (Database mock tables). Development starting soon.
 
-## 🏗 System Architecture
+## 🏗 System Architecture (v2.0 - Hybrid Stratified Routing)
+
+The new architecture introduces a "Stratified Routing" model. Every request is routed into specific execution tiers (T0 to T6), decoupling conversational intent from database analytical execution. This ensures that analytical complexity is bounded, safer, and supports dynamic valid NL2SQL execution for complex queries.
+
+```mermaid
+graph TD
+    %% Frontend Layer
+    subgraph Frontend [Frontend - Next.js]
+        UI[Chat Interface<br>React + TailwindCSS]
+        Charts[Apache ECharts<br>Visualizations]
+        UI --> Charts
+    end
+
+    %% Backend Layer
+    subgraph Backend [Backend - FastAPI]
+        API[API Router<br>/api/v1/m1_query]
+        Auth[JWT Authentication]
+        API --> Auth
+    end
+
+    %% Agent Layer (LangGraph v2.0)
+    subgraph Agents [Agent Layer - Stratified LangGraph]
+        ContextLoad[Context Loader]
+        Router{Intent Router}
+        
+        T0[T0: Conversation]
+        T1[T1: Template Dispatcher]
+        T2[T2: Follow-up Resolver]
+        T3[T3: Analytical Planner & Executor]
+        T4[T4: Clarification]
+        T5[T5: Out of Scope]
+        T6[T6: M3 Delegation]
+        
+        Eval[Result Evaluator]
+        Validate[Validation & Enrichment]
+        OutSelect[Output Selector]
+        Narrative[Narrative Generator]
+        ContextSave[Context Saver]
+
+        ContextLoad --> Router
+        Router -->|Greeting| T0
+        Router -->|Known Templates| T1
+        Router -->|Follow-ups| T2
+        Router -->|Complex Analysis| T3
+        Router -->|Missing Slots| T4
+        Router -->|Unsupported| T5
+        Router -->|Support Cases| T6
+
+        T1 --> Eval
+        T2 -->|Requery| T3
+        T2 -->|Reason| OutSelect
+        T3 --> Eval
+        
+        Eval --> Validate
+        Validate --> OutSelect
+        OutSelect --> Narrative
+        
+        T0 --> ContextSave
+        T4 --> ContextSave
+        T5 --> ContextSave
+        T6 --> ContextSave
+        Narrative --> ContextSave
+    end
+
+    %% Database Layer
+    subgraph Data [Data Layer - Supabase]
+        DB[(PostgreSQL 17.6)]
+        VectorDB[(pgvector)]
+        DB -.-> VectorDB
+    end
+
+    %% Connections
+    UI <-->|JSON + Auth| API
+    API <--> ContextLoad
+    T1 <-->|Read-only SQL| DB
+    T3 <-->|Validated NL2SQL| DB
+    T1 <-->|Cosine Similarity| VectorDB
+```
+
+### 🔄 Differences & Improvements (v2.0 vs v1.0)
+
+Version 2.0 transforms Wakeel from an "ERP Chatbot" to a true **Context-Aware Data Analyst Copilot**.
+- **Execution Tiers (T0-T6)**: Replaced a flat intent router with 7 distinct execution tiers to differentiate between greetings (T0), template queries (T1), follow-ups (T2), and complex multi-step analytics (T3).
+- **Dynamic NL2SQL (T3)**: v1.0 only relied on predefined templates. v2.0 introduces a bounded SQL generation and repair loop that can safely generate dynamic SQL for out-of-bounds questions while strictly adhering to read-only DB permissions and an authorized schema catalog.
+- **Result Evaluation**: v2.0 adds a `ResultEvaluatorNode` that verifies if the returned data semantically covers the user's question before responding, preventing hallucinated explanations over incomplete data.
+- **Context Persistence**: Replaced simple chat history with structured `analysis_frame` tracking. The agent now remembers the precise metrics, dimensions, and filters of previous turns for seamless drill-down (T2).
+- **Delegation**: Native T6 delegation to the upcoming M3 Customer Support agent instead of handling support tickets within the analytical agent.
+
+---
+
+## 🏛 Legacy Architecture (v1.0)
+
+<details>
+<summary>Click to view the previous v1.0 Architecture</summary>
 
 ```mermaid
 graph TD
@@ -66,6 +159,7 @@ graph TD
     InvoiceTool <-->|Read-only SQL| DB
     TaxRAG <-->|Cosine Similarity| VectorDB
 ```
+</details>
 
 ## ✨ Key Features (M1 Intelligence Agent)
 

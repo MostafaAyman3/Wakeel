@@ -28,7 +28,6 @@ from typing import Any
 
 import structlog
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.database import get_db_session
 
@@ -58,7 +57,7 @@ async def get_recent_messages(session_id: str, limit: int = HISTORY_LIMIT) -> li
             # then reverse to chronological order for the LLM.
             result = await db.execute(
                 text("""
-                    SELECT role, content
+                    SELECT role, content, metadata
                     FROM conversations
                     WHERE session_id = :session_id
                     ORDER BY created_at DESC
@@ -69,7 +68,14 @@ async def get_recent_messages(session_id: str, limit: int = HISTORY_LIMIT) -> li
             rows = result.fetchall()
 
         # Reverse so oldest message is first (natural conversation order)
-        messages = [{"role": row.role, "content": row.content} for row in reversed(rows)]
+        messages = [
+            {
+                "role": row.role,
+                "content": row.content,
+                "metadata": row.metadata if isinstance(row.metadata, dict) else {},
+            }
+            for row in reversed(rows)
+        ]
         logger.info(
             "conversation_service: loaded history",
             session_id=session_id,

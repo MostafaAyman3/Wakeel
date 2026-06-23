@@ -85,6 +85,9 @@ async def clarify(state: M1State) -> dict:
 
     return {
         "needs_clarification": True,
+        "clarification_pending": True,
+        "clarification_original_query": query,
+        "clarification_question": clarification_msg,
         "clarification_message": clarification_msg,
         "final_response": {
             "format": "direct_text",

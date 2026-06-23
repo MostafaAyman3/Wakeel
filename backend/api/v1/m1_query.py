@@ -110,6 +110,39 @@ async def handle_query(
             "error": "",
             "needs_clarification": False,
             "clarification_message": "",
+            "assigned_tier": "",
+            "domain_intent": "",
+            "router_confidence": 0.0,
+            "router_reasoning": "",
+            "route_signals": [],
+            "analysis_frame": {},
+            "prior_analysis_frame": {},
+            "conversation_metadata": [],
+            "context_metadata": {},
+            "prior_result_summary": {},
+            "query_mode": "none",
+            "matched_template": "",
+            "template_confidence": 0.0,
+            "pending_sql": "",
+            "sql_parameters": {},
+            "sql_validation": {},
+            "sql_attempt": 0,
+            "db_execution_count": 0,
+            "query_artifacts": [],
+            "result_coverage": 0.0,
+            "result_evidence": [],
+            "result_gaps": [],
+            "result_needs_requery": False,
+            "react_plan": [],
+            "react_iteration": 0,
+            "react_done": False,
+            "react_exit_reason": "",
+            "tool_results": [],
+            "clarification_pending": False,
+            "clarification_original_query": "",
+            "clarification_missing_slots": [],
+            "clarification_question": "",
+            "m3_delegation_payload": {},
             "user_context": {
                 "user_id": user.user_id,
                 "role": user.role,
@@ -154,14 +187,16 @@ async def handle_query(
             metadata={"language": request.language},
         )
         # Save agent response (save the narrative as the content for future context)
+        assistant_metadata = {
+            **result.get("context_metadata", {}),
+            "intent": result.get("intent", ""),
+            "format": final_response.get("format", ""),
+        }
         await save_message(
             session_id=session_id,
             role="assistant",
             content=narrative,
-            metadata={
-                "intent": result.get("intent", ""),
-                "format": final_response.get("format", ""),
-            },
+            metadata=assistant_metadata,
         )
 
         return QueryResponse(
@@ -171,7 +206,12 @@ async def handle_query(
             narrative=narrative,
             alert=final_response.get("alert"),
             disclaimer=final_response.get("disclaimer"),
-            metadata=final_response.get("metadata"),
+            metadata={
+                **(final_response.get("metadata") or {}),
+                "assigned_tier": result.get("assigned_tier"),
+                "domain_intent": result.get("domain_intent"),
+                "result_status": result.get("result_status"),
+            },
             session_id=session_id,
         )
 

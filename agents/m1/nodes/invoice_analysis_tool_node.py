@@ -18,36 +18,22 @@ from __future__ import annotations
 import json
 import re
 from datetime import date, datetime
-from decimal import Decimal
 from typing import Any
 
 import structlog
-from sqlalchemy import text
 
 from agents.m1.schemas.m1_state import M1State
 from agents.m1.tools.invoice_templates import INVOICE_TEMPLATES, SUBTYPE_TO_TEMPLATE
+from agents.m1.tools.query_gateway import execute_readonly_query
 from agents.prompts.invoice_analysis import (
     INVOICE_NARRATIVE_PROMPT,
     INVOICE_PARAM_EXTRACTION_PROMPT,
 )
 from agents.shared.llm_client import llm_fast, llm_primary
-from backend.core.database import get_readonly_session
 
 logger = structlog.get_logger(__name__)
 
 # ── Security: re-use Sprint 2 AST validator ──────────────────────────────────
-try:
-    import sqlglot
-    from sqlglot import exp as sqlglot_exp
-
-    _SQLGLOT_AVAILABLE = True
-except ImportError:
-    _SQLGLOT_AVAILABLE = False
-    logger.warning("sqlglot not installed — relying on readonly DB user only.")
-
-# Tables allowed in invoice queries (whitelist)
-_ALLOWED_TABLES: frozenset[str] = frozenset({"invoices", "invoice_items", "vendors"})
-
 # Max rows returned by any invoice query
 _HARD_LIMIT = 500
 
@@ -58,34 +44,6 @@ _PRICE_CHANGE_MEDIUM      = 0.10   # +10% avg price → medium
 _PRICE_CHANGE_HIGH        = 0.25   # +25% avg price → high
 _CONCENTRATION_MEDIUM     = 0.40   # single vendor > 40% of total → medium
 _CONCENTRATION_HIGH       = 0.60   # single vendor > 60% of total → high
-
-
-def _validate_invoice_sql(sql_str: str) -> bool:
-    """Verify the rendered SQL is a pure SELECT statement."""
-    if _SQLGLOT_AVAILABLE:
-        try:
-            parsed = sqlglot.parse(sql_str)
-            return all(isinstance(stmt, sqlglot_exp.Select) for stmt in parsed)
-        except Exception as exc:
-            logger.error("SQL AST parse failed", error=str(exc))
-            return False
-    # Fallback: string inspection
-    upper = sql_str.upper()
-    dangerous = {"INSERT ", "UPDATE ", "DELETE ", "DROP ", "ALTER ", "TRUNCATE "}
-    return not any(kw in upper for kw in dangerous)
-
-
-def _serialize_row(row: dict) -> dict:
-    """Convert DB row values to JSON-serialisable Python types."""
-    out: dict = {}
-    for k, v in row.items():
-        if isinstance(v, (datetime, date)):
-            out[k] = v.isoformat()
-        elif isinstance(v, Decimal):
-            out[k] = float(v)
-        else:
-            out[k] = v
-    return out
 
 
 class InvoiceAnalysisToolNode:
@@ -147,12 +105,17 @@ class InvoiceAnalysisToolNode:
             }
 
         # Record which template was applied
-        invoice_params["intent_details"]["applied_template"] = sql_params.get("_template_name")
+        applied_template = sql_params.get("_template_name")
+        invoice_params["intent_details"]["applied_template"] = applied_template
         invoice_params["metrics"]["requires_vendor_lookup"]  = sql_params.pop("_vendor_lookup", False)
         sql_params.pop("_template_name", None)
 
         # ── Step 3: Execute query against read-only DB ───────────────────────
-        raw_data, exec_error = await self._execute_invoice_query(sql_obj, sql_params)
+        raw_data, exec_error, query_artifact = await self._execute_invoice_query(
+            sql_obj,
+            sql_params,
+            purpose=str(applied_template or "invoice_analysis"),
+        )
 
         # data_confidence is a POST-QUERY calculation — separate from extraction_confidence
         if exec_error:
@@ -173,6 +136,9 @@ class InvoiceAnalysisToolNode:
             "raw_data": raw_data,
             "narrative": narrative,
             "data_confidence": data_confidence,
+            "query_mode": "template",
+            "matched_template": str(applied_template or ""),
+            "query_artifacts": state.get("query_artifacts", []) + [query_artifact],
         }
 
     # ── Private: Step 1 ──────────────────────────────────────────────────────
@@ -314,8 +280,12 @@ class InvoiceAnalysisToolNode:
     # ── Private: Step 3 ──────────────────────────────────────────────────────
 
     async def _execute_invoice_query(
-        self, sql_obj: Any, sql_params: dict
-    ) -> tuple[list, str | None]:
+        self,
+        sql_obj: Any,
+        sql_params: dict,
+        *,
+        purpose: str = "invoice_analysis",
+    ) -> tuple[list, str | None, dict]:
         """
         Execute the pre-built SQL against the read-only database.
 
@@ -330,26 +300,27 @@ class InvoiceAnalysisToolNode:
 
         sql_str: str = sql_obj.text if hasattr(sql_obj, "text") else str(sql_obj)
 
-        if not _validate_invoice_sql(sql_str):
-            logger.error("Invoice SQL validation failed — non-SELECT statement detected")
-            return [], "SQL validation failed: only SELECT statements are allowed."
+        data, artifact = await execute_readonly_query(
+            sql=sql_str,
+            parameters=clean_params,
+            source="template",
+            purpose=purpose,
+            hard_limit=_HARD_LIMIT,
+        )
+        if artifact.get("execution_status") != "success":
+            error_message = artifact.get(
+                "error_message",
+                "Invoice query failed validation or execution.",
+            )
+            logger.warning(
+                "Invoice query rejected",
+                category=artifact.get("error_category"),
+                error=error_message,
+            )
+            return [], error_message, artifact
 
-        try:
-            async with get_readonly_session() as session:
-                # Enforce hard row limit even if template already has LIMIT
-                limited_sql = text(
-                    f"SELECT * FROM ({sql_str.strip().rstrip(';')}) AS _invoice_query LIMIT {_HARD_LIMIT}"
-                )
-                result = await session.execute(limited_sql, clean_params)
-                rows   = result.mappings().fetchall()
-                data   = [_serialize_row(dict(r)) for r in rows]
-
-            logger.info("Invoice query executed", row_count=len(data))
-            return data, None
-
-        except Exception as exc:
-            logger.error("Invoice DB execution failed", error=str(exc))
-            return [], f"Database error: {str(exc)}"
+        logger.info("Invoice query executed", row_count=len(data))
+        return data, None, artifact
 
     # ── Private: Step 4 ──────────────────────────────────────────────────────
 
@@ -431,9 +402,6 @@ class InvoiceAnalysisToolNode:
         """
         if not raw_data:
             return {}, []
-
-        intent_details = invoice_params.get("intent_details", {})
-        subtype        = intent_details.get("analysis_type", "")
 
         pre_computed   : dict = {}
         detected_patterns: list = []

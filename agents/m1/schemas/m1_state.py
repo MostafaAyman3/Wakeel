@@ -18,6 +18,9 @@ IntentType = Literal[
     "invoice_analysis",
     "tax_reasoning",
     "clarification_needed",
+    "conversation",
+    "out_of_scope",
+    "support",
 ]
 
 OutputType = Literal[
@@ -78,3 +81,55 @@ class M1State(TypedDict, total=False):
     error: str                    # Error message (empty = no error)
     needs_clarification: bool     # True → clarification flow was triggered
     clarification_message: str    # The clarification question for the user
+
+    # ── Stratified routing ────────────────────────────────────────────────
+    assigned_tier: Literal["T0", "T1", "T2", "T3", "T4", "T5", "T6"]
+    domain_intent: str
+    router_confidence: float
+    router_reasoning: str
+    route_signals: list[str]
+
+    # ── Structured analytical context ────────────────────────────────────
+    analysis_frame: dict
+    prior_analysis_frame: dict
+    conversation_metadata: list[dict]
+    context_metadata: dict
+    prior_result_summary: dict
+
+    # ── Query execution ──────────────────────────────────────────────────
+    query_mode: Literal["template", "nl2sql", "none"]
+    matched_template: str
+    template_confidence: float
+    pending_sql: str
+    sql_parameters: dict
+    sql_validation: dict
+    sql_attempt: int
+    db_execution_count: int
+    query_artifacts: list[dict]
+
+    # ── Result evaluation ────────────────────────────────────────────────
+    result_status: Literal[
+        "complete", "partial", "empty", "suspicious", "invalid", "failed"
+    ]
+    result_coverage: float
+    result_evidence: list[str]
+    result_gaps: list[str]
+    result_needs_requery: bool
+    result_format_hint: OutputType
+
+    # ── Follow-up and bounded analytical execution ───────────────────────
+    followup_mode: Literal[
+        "reason_only", "refine", "drill_down", "compare", "requery", "summarize"
+    ]
+    react_plan: list[dict]
+    react_iteration: int
+    react_done: bool
+    react_exit_reason: str
+    tool_results: list[dict]
+
+    # ── Clarification lifecycle and M3 delegation ────────────────────────
+    clarification_pending: bool
+    clarification_original_query: str
+    clarification_missing_slots: list[str]
+    clarification_question: str
+    m3_delegation_payload: dict

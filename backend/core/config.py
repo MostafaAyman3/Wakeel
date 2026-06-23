@@ -69,6 +69,16 @@ class Settings(BaseSettings):
     rag_top_k: int = 5
     rag_similarity_threshold: float = 0.75
 
+    # M1 architecture migration
+    m1_stratified_router_enabled: bool = True
+    m1_nl2sql_enabled: bool = True
+    m1_shadow_router_enabled: bool = False
+    m1_react_max_iterations: int = 5
+    m1_nl2sql_max_attempts: int = 3
+    m1_max_db_executions: int = 4
+    m1_query_timeout_ms: int = 30000
+    m1_query_hard_limit: int = 500
+
     # M3 thresholds
     m3_repeat_issue_threshold: int = 2
     m3_confidence_review_threshold: float = 0.70

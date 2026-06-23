@@ -1,0 +1,101 @@
+"""Structured contracts shared by routing, query execution, and evaluation."""
+
+from __future__ import annotations
+
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
+
+
+class DateRange(BaseModel):
+    start: str | None = None
+    end: str | None = None
+
+
+class AnalysisEntity(BaseModel):
+    type: str
+    value: str
+
+
+class AnalysisFrame(BaseModel):
+    metric: str | None = None
+    entities: list[AnalysisEntity] = Field(default_factory=list)
+    dimensions: list[str] = Field(default_factory=list)
+    filters: dict[str, Any] = Field(default_factory=dict)
+    date_range: DateRange | None = None
+    comparison_range: DateRange | None = None
+    grain: str | None = None
+    analysis_type: str | None = None
+    requested_output: str | None = None
+
+
+class RouteDecision(BaseModel):
+    assigned_tier: Literal["T0", "T1", "T2", "T3", "T4", "T5", "T6"]
+    domain_intent: str
+    confidence: float = Field(ge=0.0, le=1.0)
+    reasoning: str
+    signals: list[str] = Field(default_factory=list)
+    analysis_frame: AnalysisFrame = Field(default_factory=AnalysisFrame)
+    missing_slots: list[str] = Field(default_factory=list)
+
+
+class GeneratedQuery(BaseModel):
+    sql: str
+    purpose: str
+    expected_columns: list[str] = Field(default_factory=list)
+    expected_grain: str = "unknown"
+    referenced_tables: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
+class QueryValidation(BaseModel):
+    is_valid: bool
+    error_category: str | None = None
+    message: str | None = None
+    tables: list[str] = Field(default_factory=list)
+    columns: list[str] = Field(default_factory=list)
+    sql_fingerprint: str = ""
+    normalized_sql: str | None = None
+
+
+class QueryArtifact(BaseModel):
+    source: Literal["template", "nl2sql"]
+    purpose: str
+    sql_fingerprint: str
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    referenced_tables: list[str] = Field(default_factory=list)
+    referenced_columns: list[str] = Field(default_factory=list)
+    validation: dict[str, Any] = Field(default_factory=dict)
+    execution_status: str
+    row_count: int = 0
+    duration_ms: float = 0.0
+    result_sample: list[dict[str, Any]] = Field(default_factory=list)
+    error_category: str | None = None
+    error_message: str | None = None
+
+
+class ResultEvaluation(BaseModel):
+    status: Literal[
+        "complete", "partial", "empty", "suspicious", "invalid", "failed"
+    ]
+    coverage: float = Field(ge=0.0, le=1.0)
+    evidence: list[str] = Field(default_factory=list)
+    gaps: list[str] = Field(default_factory=list)
+    needs_requery: bool = False
+    format_hint: str = "narrative"
+
+
+class PlanStep(BaseModel):
+    id: str
+    purpose: str
+    preferred_tool: Literal["template", "nl2sql", "python"]
+    expected_columns: list[str] = Field(default_factory=list)
+    expected_grain: str = "unknown"
+    depends_on: list[str] = Field(default_factory=list)
+
+
+class AnalyticalPlan(BaseModel):
+    steps: list[PlanStep] = Field(default_factory=list)
+    final_synthesis: str = ""
+

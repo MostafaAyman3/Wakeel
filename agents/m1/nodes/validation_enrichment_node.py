@@ -12,7 +12,6 @@ Sprint 5 upgrade:
 
 from __future__ import annotations
 
-from typing import Any
 
 import structlog
 
@@ -39,7 +38,7 @@ async def validate_and_enrich(state: M1State) -> dict:
     # ── Data-confidence score ─────────────────────────────────────────────
     # If upstream node already set confidence (e.g. invoice_analysis_tool),
     # preserve it; otherwise compute from raw_data presence.
-    if existing_confidence >= 0:
+    if existing_confidence > 0:
         data_confidence = existing_confidence
     else:
         data_confidence = 1.0 if raw_data else 0.0

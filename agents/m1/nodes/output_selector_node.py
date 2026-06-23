@@ -21,7 +21,6 @@ Sprint plan: M1_Sprints.md Sprint 5
 
 from __future__ import annotations
 
-from typing import Any
 
 import structlog
 
@@ -177,6 +176,7 @@ async def select_output(state: M1State) -> dict:
     language: str = state.get("language", "en")
     extracted_params: dict = state.get("extracted_params", {})
     anomaly_detected: bool = state.get("anomaly_detected", False)
+    evaluator_hint: str = state.get("result_format_hint", "")
 
     row_count = len(raw_data)
     columns = list(raw_data[0].keys()) if raw_data else []
@@ -197,6 +197,9 @@ async def select_output(state: M1State) -> dict:
     # 2. Template-specific hint (if available and not overridden by anomaly)
     elif hint:
         selected = hint
+
+    elif evaluator_hint:
+        selected = evaluator_hint
 
     # 3. Narrative — tax or explanation intent (no chart needed)
     elif intent == "tax_reasoning":

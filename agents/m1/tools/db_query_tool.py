@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import text
 from pydantic import BaseModel, Field
@@ -15,18 +14,9 @@ import structlog
 
 from agents.shared.llm_client import llm_fast
 from agents.m1.schemas.m1_state import M1State
-from backend.core.database import get_readonly_session
+from agents.m1.tools.query_gateway import execute_readonly_query
 
 logger = structlog.get_logger(__name__)
-
-try:
-    import sqlglot
-    from sqlglot import exp
-    SQLGLOT_AVAILABLE = True
-except ImportError:
-    SQLGLOT_AVAILABLE = False
-    logger.warning("sqlglot not installed. AST validation skipped. Relying on readonly user.")
-
 
 class TemplateSelection(BaseModel):
     """Structured output for selecting the right template and formatting its parameters."""
@@ -180,24 +170,6 @@ TEMPLATES = {
     """)
 }
 
-def validate_sql(query_str: str) -> bool:
-    """Validation layer: Ensure AST is purely SELECT."""
-    if not SQLGLOT_AVAILABLE:
-        upper_q = query_str.upper()
-        if any(x in upper_q for x in ["INSERT ", "UPDATE ", "DELETE ", "DROP ", "ALTER ", "TRUNCATE "]):
-            return False
-        return True
-        
-    try:
-        parsed = sqlglot.parse(query_str)
-        for stmt in parsed:
-            if not isinstance(stmt, exp.Select):
-                return False
-        return True
-    except Exception as e:
-        logger.error("SQL parsing failed", error=str(e))
-        return False
-
 async def db_query_tool(state: M1State) -> dict:
     """Executes the exact requested dynamic SQL template on the read-only DB.
 
@@ -248,11 +220,6 @@ async def db_query_tool(state: M1State) -> dict:
     sql_text = TEMPLATES[tid]
     rendered_sql_str = sql_text.text.format(order=order_clause)
     
-    if not validate_sql(rendered_sql_str):
-        return {"error": "Query validation failed. Harmful SQL detected.", "raw_data": []}
-    
-    final_sql = text(rendered_sql_str)
-    
     params = {
         "start_date": start_dt,
         "end_date": end_dt,
@@ -282,28 +249,46 @@ async def db_query_tool(state: M1State) -> dict:
         base_label = label_period(start_dt, end_dt)
         compare_label = label_period(compare_start, compare_end)
 
+        compare_params = {
+            **params,
+            "start_date": compare_start,
+            "end_date": compare_end,
+        }
+        rows1, artifact1 = await execute_readonly_query(
+            sql=rendered_sql_str,
+            parameters=params,
+            source="template",
+            purpose=f"{tid}:base_comparison_period",
+        )
+        rows2, artifact2 = await execute_readonly_query(
+            sql=rendered_sql_str,
+            parameters=compare_params,
+            source="template",
+            purpose=f"{tid}:comparison_period",
+        )
+        artifacts = [artifact1, artifact2]
+
+        if any(a.get("execution_status") != "success" for a in artifacts):
+            failed = next(
+                a for a in artifacts if a.get("execution_status") != "success"
+            )
+            return {
+                "error": failed.get("error_message", "Query execution failed."),
+                "raw_data": [],
+                "query_artifacts": state.get("query_artifacts", []) + artifacts,
+                "result_status": "failed",
+            }
+
+        # Merge results with period labels.
+        results = []
+        for row in rows1:
+            row["period"] = base_label
+            results.append(row)
+        for row in rows2:
+            row["period"] = compare_label
+            results.append(row)
+
         try:
-            async with get_readonly_session() as session:
-                # Base period
-                result1 = await session.execute(final_sql, params)
-                rows1 = [dict(r) for r in result1.mappings().fetchall()]
-
-                # Comparison period
-                compare_params = {**params, "start_date": compare_start, "end_date": compare_end}
-                result2 = await session.execute(final_sql, compare_params)
-                rows2 = [dict(r) for r in result2.mappings().fetchall()]
-
-            # Merge results with period labels
-            results = []
-            for r in rows1:
-                _format_dates(r)
-                r["period"] = base_label
-                results.append(r)
-            for r in rows2:
-                _format_dates(r)
-                r["period"] = compare_label
-                results.append(r)
-
             logger.info(
                 "db_query_tool: comparison query executed",
                 template=tid,
@@ -313,12 +298,14 @@ async def db_query_tool(state: M1State) -> dict:
                 compare_rows=len(rows2),
             )
 
-        except Exception as e:
-            logger.error("DB Comparison execution failed", error=str(e), template=tid)
-            return {"error": f"Database error: {str(e)}", "raw_data": []}
+        except Exception:
+            logger.exception("db_query_tool: comparison logging failed", template=tid)
 
         return {
             "raw_data": results,
+            "query_mode": "template",
+            "matched_template": tid,
+            "query_artifacts": state.get("query_artifacts", []) + artifacts,
             "extracted_params": {
                 **extracted_params,
                 "applied_template": tid,
@@ -328,24 +315,27 @@ async def db_query_tool(state: M1State) -> dict:
         }
 
     # ── Standard (non-comparison) mode ────────────────────────────
-    results = []
-    try:
-        async with get_readonly_session() as session:
-            result = await session.execute(final_sql, params)
-            rows = result.mappings().fetchall()
-            results = [dict(r) for r in rows]
-            for r in results:
-                _format_dates(r)
-                        
-    except Exception as e:
-        logger.error("DB Execution failed", error=str(e), template=tid)
+    results, artifact = await execute_readonly_query(
+        sql=rendered_sql_str,
+        parameters=params,
+        source="template",
+        purpose=tid,
+    )
+    if artifact.get("execution_status") != "success":
         return {
-            "error": f"Database error: {str(e)}",
-            "raw_data": []
+            "error": artifact.get("error_message", "Query execution failed."),
+            "raw_data": [],
+            "query_mode": "template",
+            "matched_template": tid,
+            "query_artifacts": state.get("query_artifacts", []) + [artifact],
+            "result_status": "failed",
         }
 
     return {
         "raw_data": results,
+        "query_mode": "template",
+        "matched_template": tid,
+        "query_artifacts": state.get("query_artifacts", []) + [artifact],
         "extracted_params": {
             **extracted_params,
             "applied_template": tid,
