@@ -20,8 +20,8 @@ class AnalysisEntity(BaseModel):
 class AnalysisFrame(BaseModel):
     metric: str | None = None
     entities: list[AnalysisEntity] = Field(default_factory=list)
-    dimensions: list[str] = Field(default_factory=list)
-    filters: dict[str, Any] = Field(default_factory=dict)
+    dimensions: list[str] | None = Field(default_factory=list)
+    filters: dict[str, Any] | None = Field(default_factory=dict)
     date_range: DateRange | None = None
     comparison_range: DateRange | None = None
     grain: str | None = None
@@ -98,4 +98,50 @@ class PlanStep(BaseModel):
 class AnalyticalPlan(BaseModel):
     steps: list[PlanStep] = Field(default_factory=list)
     final_synthesis: str = ""
+
+
+class FrameUpdate(BaseModel):
+    """A single atomic change to apply on the prior analysis frame."""
+    field: Literal[
+        "metric", "date_range", "comparison_range", "grain",
+        "analysis_type", "requested_output",
+    ]
+    value: Any
+
+
+class FollowUpResolution(BaseModel):
+    """LLM output: understand what the user wants to change in the analysis."""
+    mode: Literal[
+        "reason_only", "refine", "drill_down", "compare",
+        "requery", "summarize",
+    ]
+    reasoning: str = ""
+    add_filters: dict[str, str] = Field(
+        default_factory=dict,
+        description="New filters to add, e.g. {'customer': 'أحمد'}",
+    )
+    remove_filters: list[str] = Field(
+        default_factory=list,
+        description="Filter keys to remove from the prior frame",
+    )
+    add_dimensions: list[str] = Field(
+        default_factory=list,
+        description="New dimensions to add, e.g. ['product', 'region']",
+    )
+    remove_dimensions: list[str] = Field(
+        default_factory=list,
+        description="Dimensions to remove from the prior frame",
+    )
+    add_entities: list[AnalysisEntity] = Field(
+        default_factory=list,
+        description="New entities to scope the analysis",
+    )
+    frame_updates: list[FrameUpdate] = Field(
+        default_factory=list,
+        description="Direct field overrides on the analysis frame",
+    )
+    new_query_text: str | None = Field(
+        default=None,
+        description="Rewritten standalone query if the original is too short",
+    )
 

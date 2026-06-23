@@ -154,7 +154,7 @@ def validate_sql(
             )
 
     for function in expression.find_all(exp.Func):
-        function_name = function.sql_name().lower()
+        function_name = function.name.lower()
         if function_name in _BLOCKED_FUNCTIONS:
             return _failure(
                 "security_policy_violation",

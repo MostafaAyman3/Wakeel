@@ -1,13 +1,44 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import type { QueryResponse } from "@/types/m1";
 import MetricCard from "@/components/m1/MetricCard";
 import SortableTable from "@/components/m1/SortableTable";
-import LineChart from "@/components/m1/LineChart";
-import BarChart from "@/components/m1/BarChart";
 import AlertCard from "@/components/m1/AlertCard";
 import NarrativeText from "@/components/m1/NarrativeText";
+
+/* ─────────────────────────────────────────────────────────────
+ * Dynamic chart imports — ssr: false prevents Next.js from
+ * rendering ECharts on the server where browser APIs
+ * (Canvas, echarts.graphic.LinearGradient) are unavailable.
+ * ───────────────────────────────────────────────────────────── */
+
+const ChartSkeleton = () => (
+  <div className="animate-pulse rounded-lg bg-surface border border-slate p-4">
+    <div className="h-4 w-1/3 bg-slate rounded mb-4" />
+    <div className="flex items-end gap-2 h-[200px]">
+      {[60, 80, 45, 90, 70, 55, 85].map((h, i) => (
+        <div
+          key={i}
+          className="flex-1 bg-gold/10 rounded-t"
+          style={{ height: `${h}%` }}
+        />
+      ))}
+    </div>
+    <div className="h-3 w-full bg-slate/50 rounded mt-3" />
+  </div>
+);
+
+const LineChart = dynamic(() => import("@/components/m1/LineChart"), {
+  ssr: false,
+  loading: () => <ChartSkeleton />,
+});
+
+const BarChart = dynamic(() => import("@/components/m1/BarChart"), {
+  ssr: false,
+  loading: () => <ChartSkeleton />,
+});
 
 /* ─────────────────────────────────────────────────────────────
  * OutputRenderer — smart router that reads response.format
@@ -97,3 +128,4 @@ export default function OutputRenderer({ response, language }: OutputRendererPro
     </div>
   );
 }
+

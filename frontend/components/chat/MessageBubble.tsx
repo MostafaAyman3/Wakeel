@@ -42,11 +42,11 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(
     // Agent message
     return (
       <div ref={ref} className="flex justify-start animate-slide-up" dir={dir}>
-        <div className="flex items-start gap-3 max-w-[85%]">
+        <div className="flex items-start gap-3 max-w-[95%]">
           <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gold flex items-center justify-center mt-1">
             <Bot size={14} className="text-midnight" />
           </div>
-          <div className="bubble-agent space-y-3 card-gold-border">
+          <div className="bubble-agent space-y-3 card-gold-border overflow-hidden min-w-0">
             {message.response ? (
               <OutputRenderer
                 response={message.response}
