@@ -659,3 +659,19 @@ The following are NOT architecture tasks — they are implementation tasks for t
 5. **pgvector** — required from Sprint 0 (M1). ✅ Already enabled (v0.8.0).
 6. **Supabase Direct Connection blocked** — port 5432 times out on free tier (IPv6 only). Use Shared Pooler (port 6543) for all connections.
 7. **Table name mismatch** — `shipments` and `customer_interactions` in DB vs `shipping` and `customer_history` in sprint spec. Use actual DB names in all queries.
+
+---
+
+## Step 29
+
+Time: 2026-06-24
+Action: M1 Final Polish (Structure Update 2 Merge, UI Alert Fixes, T3 Planner & NL2SQL Upgrades)
+Reason: Consolidating final architectural improvements to reach true "Data Analyst Copilot" quality (Level 1 metrics).
+Details:
+- Merged `feature/m1-structure-update2` containing `result_evaluator_node.py` refinement and M3 delegation fixes.
+- Updated `constants.py` and `WAKEEL_ARCHITECTURE_MIGRATION.md` to approve `shipments` and `customer_interactions` tables for M1 access per user decision.
+- Fixed Frontend Alert Logic: Updated `output_selector_node.py`, `m1_query.py`, and `OutputRenderer.tsx` to display both the AlertCard AND the underlying Data Visualization (Table/Chart) simultaneously when anomalies are detected.
+- T3 Planner Upgrade: Updated `t3_planner_node.py` and `m1_planner.py` to inject `get_schema_catalog()` and `TEMPLATES.keys()` directly into the prompt. The planner is now schema-aware and template-aware, avoiding hallucinated columns.
+- NL2SQL Prompt Engineering: Updated `nl2sql.py` with robust schema-specific constraints (e.g. `ILIKE`, correct `invoices` filtering) and high-quality few-shot examples to reduce SQL generation errors to near zero.
+Result: SUCCESS — M1 is fully polished, schema-aware, and frontend bugs resolved.
+

@@ -10,6 +10,8 @@ from agents.m1.schemas.analysis_models import AnalyticalPlan, PlanStep
 from agents.m1.schemas.m1_state import M1State
 from agents.prompts.m1_planner import M1_PLANNER_SYSTEM_PROMPT
 from agents.shared.llm_client import llm_primary
+from agents.m1.tools.schema_catalog import get_schema_catalog
+from agents.m1.tools.db_query_tool import TEMPLATES
 
 
 async def plan_analysis(state: M1State) -> dict:
@@ -17,11 +19,19 @@ async def plan_analysis(state: M1State) -> dict:
         AnalyticalPlan,
         method="function_calling",
     )
+    
+    schema_str = get_schema_catalog().get_schema_string()
+    templates_str = ", ".join(TEMPLATES.keys())
+
     prompt = (
         f"Question: {state.get('query', '')}\n"
         f"Domain: {state.get('domain_intent', '')}\n"
         "Analysis frame: "
-        f"{json.dumps(state.get('analysis_frame', {}), ensure_ascii=False)}\n"
+        f"{json.dumps(state.get('analysis_frame', {}), ensure_ascii=False)}\n\n"
+        "Available Templates:\n"
+        f"{templates_str}\n\n"
+        "Database Schema:\n"
+        f"{schema_str}\n"
     )
     try:
         plan = await planner.ainvoke(
