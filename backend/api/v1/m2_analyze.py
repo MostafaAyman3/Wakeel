@@ -7,6 +7,7 @@ from agents.m2.nodes.inventory_check_node import inventory_check_node
 from agents.m2.graphs.m2_graph import m2_app
 from backend.core.database import get_db_session
 from backend.models.m2_inventory_alert import InventoryAlert
+from backend.models.m2_pricing_recommendation import PricingRecommendation
 
 router = APIRouter(prefix="/m2", tags=["M2 Analyze"])
 
@@ -63,10 +64,17 @@ async def analyze_inventory(request: AnalyzeRequest) -> Any:
                 
             # Collect Pricing recs (Sprint 5)
             if "pricing_recommendation" in graph_result:
+                rec_text = graph_result["pricing_recommendation"]
                 pricing_recs.append(PricingRecData(
                     product_id=prod_id,
-                    recommendation=graph_result["pricing_recommendation"]
+                    recommendation=rec_text
                 ))
+                # Save to database
+                new_rec = PricingRecommendation(
+                    product_id=prod_id,
+                    recommendation_text=rec_text
+                )
+                session.add(new_rec)
         
         await session.commit()
         

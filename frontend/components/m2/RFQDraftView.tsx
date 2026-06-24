@@ -20,19 +20,19 @@ export const RFQDraftView: React.FC<RFQDraftViewProps> = ({ drafts, products }) 
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mt-6">
-      <div className="px-4 py-5 sm:px-6 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
+    <div className="bg-gray-900 rounded-lg shadow-sm border border-gray-800 overflow-hidden mt-6">
+      <div className="px-4 py-5 sm:px-6 bg-gray-800 border-b border-orange-800 flex justify-between items-center">
         <div>
-          <h3 className="text-lg leading-6 font-medium text-blue-900">مسودات طلبات عروض الأسعار (RFQ)</h3>
-          <p className="mt-1 max-w-2xl text-sm text-blue-700">تم إنشاؤها تلقائياً بواسطة الذكاء الاصطناعي وجاهزة للاعتماد.</p>
+          <h3 className="text-lg leading-6 font-medium text-orange-400">مسودات طلبات عروض الأسعار (RFQ)</h3>
+          <p className="mt-1 max-w-2xl text-sm text-orange-300">تم إنشاؤها تلقائياً بواسطة الذكاء الاصطناعي وجاهزة للاعتماد.</p>
         </div>
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-900 text-orange-200">
           {drafts.length} مسودة
         </span>
       </div>
       <div className="p-4">
         {drafts.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-4">لا توجد مسودات حالية.</p>
+          <p className="text-sm text-gray-400 text-center py-4">لا توجد مسودات حالية.</p>
         ) : (
           <div className="space-y-6">
             {drafts.map((draft) => {
@@ -40,34 +40,34 @@ export const RFQDraftView: React.FC<RFQDraftViewProps> = ({ drafts, products }) 
               const isApproved = approvedIds.has(draft.rfq_id);
               
               return (
-                <div key={draft.rfq_id} className={`border rounded-md overflow-hidden ${isApproved ? 'border-green-300' : 'border-gray-200'}`}>
-                  <div className={`px-4 py-3 border-b flex justify-between items-center ${isApproved ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                    <h4 className="text-md font-bold text-gray-900">
+                <div key={draft.rfq_id} className={`border rounded-md overflow-hidden ${isApproved ? 'border-green-800' : 'border-gray-800'}`}>
+                  <div className={`px-4 py-3 border-b flex justify-between items-center ${isApproved ? 'bg-green-900/30 border-green-800' : 'bg-gray-800 border-gray-800'}`}>
+                    <h4 className="text-md font-bold text-white">
                       طلب شراء لـ: {product?.name_ar || 'منتج غير معروف'}
                     </h4>
                     {isApproved ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900 text-green-200">
                         معتمد (Approved)
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900 text-yellow-200">
                         مسودة (Draft)
                       </span>
                     )}
                   </div>
-                  <div className="p-4 bg-white">
-                    <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans border-l-4 border-gray-300 pl-4 py-2">
+                  <div className="p-4 bg-gray-900">
+                    <pre className="whitespace-pre-wrap text-sm text-gray-300 font-sans border-l-4 border-gray-700 pl-4 py-2">
                       {draft.draft_text}
                     </pre>
                   </div>
-                  <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex justify-end">
+                  <div className="px-4 py-3 bg-gray-800 border-t border-gray-800 flex justify-end">
                     <button
                       onClick={() => handleApprove(draft.rfq_id)}
                       disabled={isApproved}
                       className={`px-4 py-2 text-sm font-medium rounded-md shadow-sm text-white ${
                         isApproved 
-                          ? 'bg-gray-400 cursor-not-allowed' 
-                          : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                          ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
+                          : 'bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500'
                       }`}
                     >
                       {isApproved ? 'تم الاعتماد' : 'اعتماد وإرسال (Approve & Send)'}

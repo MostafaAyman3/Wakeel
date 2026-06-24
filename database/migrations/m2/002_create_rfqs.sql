@@ -88,10 +88,21 @@ CREATE INDEX IF NOT EXISTS idx_rfqs_thread_id
     WHERE thread_id IS NOT NULL;
 
 -- ── 4. Add the FK from inventory_alerts → rfqs (now that rfqs exists) ───────
-ALTER TABLE inventory_alerts
-    ADD CONSTRAINT IF NOT EXISTS fk_inventory_alerts_rfq
-    FOREIGN KEY (rfq_id) REFERENCES rfqs(id) ON DELETE SET NULL
-    DEFERRABLE INITIALLY DEFERRED;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_inventory_alerts_rfq'
+        AND table_name = 'inventory_alerts'
+    ) THEN
+        ALTER TABLE inventory_alerts
+            ADD CONSTRAINT fk_inventory_alerts_rfq
+            FOREIGN KEY (rfq_id) REFERENCES rfqs(id) ON DELETE SET NULL
+            DEFERRABLE INITIALLY DEFERRED;
+    END IF;
+END
+$$;
 
 -- ── 5. Auto-update updated_at ─────────────────────────────────────
 DROP TRIGGER IF EXISTS trg_rfqs_updated_at ON rfqs;
