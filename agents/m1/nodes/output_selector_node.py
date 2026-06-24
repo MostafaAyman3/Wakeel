@@ -190,63 +190,53 @@ async def select_output(state: M1State) -> dict:
 
     # ── Decision tree (Blueprint 2.8 — 8 scenarios) ──────────────────────
 
-    # 1. Alert Card — anomaly detected (highest priority)
+    # Determine the best data visualization format regardless of anomaly
+    data_format = ""
+    if hint and hint != "alert":
+        data_format = hint
+    elif evaluator_hint:
+        data_format = evaluator_hint
+    elif intent == "tax_reasoning":
+        data_format = "narrative"
+    elif row_count == 0:
+        data_format = "direct_text"
+    elif row_count == 1 and col_count == 1:
+        data_format = "direct_text"
+    elif row_count == 1 and col_count <= 3:
+        data_format = "metric_card"
+    elif has_time and row_count > 1:
+        data_format = "line_chart"
+    elif categorical and row_count <= 12:
+        data_format = "bar_chart"
+    elif 1 <= row_count <= 5 and col_count <= 3:
+        data_format = "formatted_text_list"
+    elif row_count > 5:
+        data_format = "table"
+    elif intent == "invoice_analysis":
+        data_format = "narrative"
+    else:
+        data_format = "direct_text"
+
+    # 1. Alert Card — anomaly detected (highest priority, but keep data viz)
     if anomaly_detected:
         selected = "alert"
-
-    # 2. Template-specific hint (if available and not overridden by anomaly)
+    # 2. Template-specific hint
     elif hint:
         selected = hint
-
     elif evaluator_hint:
         selected = evaluator_hint
-
-    # 3. Narrative — tax or explanation intent (no chart needed)
-    elif intent == "tax_reasoning":
-        selected = "narrative"
-
-    # 4. Empty data — fallback to direct_text
-    elif row_count == 0:
-        selected = "direct_text"
-
-    # 5. Direct Text — single scalar value (1 row, 1 col)
-    elif row_count == 1 and col_count == 1:
-        selected = "direct_text"
-
-    # 6. Metric Card — single row with context (1 row, ≤ 3 cols)
-    elif row_count == 1 and col_count <= 3:
-        selected = "metric_card"
-
-    # 7. Line Chart — time series data
-    elif has_time and row_count > 1:
-        selected = "line_chart"
-
-    # 8. Bar Chart — categorical comparison (≤ 12 items)
-    elif categorical and row_count <= 12:
-        selected = "bar_chart"
-
-    # 9. Formatted Text List — small list (1-5 rows, ≤ 3 cols)
-    elif 1 <= row_count <= 5 and col_count <= 3:
-        selected = "formatted_text_list"
-
-    # 10. Sortable Table — large dataset (> 5 rows) or non-categorical > 12
-    elif row_count > 5:
-        selected = "table"
-
-    # 11. Narrative — analysis/explanation intent
-    elif intent == "invoice_analysis":
-        selected = "narrative"
-
-    # 12. Fallback
     else:
-        selected = "direct_text"
+        selected = data_format
 
     # ── Build chart_config for chart types ─────────────────────────────────
-    chart_config = _build_chart_config(selected, columns, raw_data, language)
+    # When format is alert, build chart_config for the secondary data format
+    chart_format = data_format if selected == "alert" else selected
+    chart_config = _build_chart_config(chart_format, columns, raw_data, language)
 
     logger.info(
         "output_selector: format selected",
         format=selected,
+        data_format=data_format,
         row_count=row_count,
         col_count=col_count,
         has_time=has_time,
@@ -255,7 +245,17 @@ async def select_output(state: M1State) -> dict:
         anomaly=anomaly_detected,
     )
 
-    return {
+    result: dict = {
         "output_format": selected,
         "chart_config": chart_config,
     }
+    # When alert is selected, pass the data format so the renderer
+    # can show both the alert AND the data visualization.
+    if selected == "alert" and data_format and data_format != "direct_text":
+        result["extracted_params"] = {
+            **state.get("extracted_params", {}),
+            "alert_data_format": data_format,
+        }
+
+    return result
+

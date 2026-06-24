@@ -199,6 +199,19 @@ async def handle_query(
             metadata=assistant_metadata,
         )
 
+        # Extract alert_data_format for frontend rendering
+        extracted_params = result.get("extracted_params", {})
+        alert_data_format = extracted_params.get("alert_data_format")
+
+        response_metadata: dict = {
+            **(final_response.get("metadata") or {}),
+            "assigned_tier": result.get("assigned_tier"),
+            "domain_intent": result.get("domain_intent"),
+            "result_status": result.get("result_status"),
+        }
+        if alert_data_format:
+            response_metadata["alert_data_format"] = alert_data_format
+
         return QueryResponse(
             format=final_response.get("format", "direct_text"),
             data=final_response.get("data"),
@@ -206,12 +219,7 @@ async def handle_query(
             narrative=narrative,
             alert=final_response.get("alert"),
             disclaimer=final_response.get("disclaimer"),
-            metadata={
-                **(final_response.get("metadata") or {}),
-                "assigned_tier": result.get("assigned_tier"),
-                "domain_intent": result.get("domain_intent"),
-                "result_status": result.get("result_status"),
-            },
+            metadata=response_metadata,
             session_id=session_id,
         )
 
