@@ -5,6 +5,7 @@ from __future__ import annotations
 M1_APPROVED_TABLES: frozenset[str] = frozenset(
     {
         "customers",
+        "customer_interactions",
         "inventory",
         "invoice_items",
         "invoices",
@@ -12,6 +13,7 @@ M1_APPROVED_TABLES: frozenset[str] = frozenset(
         "orders",
         "payments",
         "products",
+        "shipments",
         "transactions",
         "vendors",
     }
@@ -21,8 +23,6 @@ M1_BLOCKED_TABLES: frozenset[str] = frozenset(
     {
         "audit_log",
         "conversations",
-        "customer_interactions",
-        "shipments",
         "tax_chunks",
     }
 )

@@ -320,6 +320,7 @@ Approved M1 tables:
 ```python
 M1_APPROVED_TABLES = {
     "customers",
+    "customer_interactions",
     "inventory",
     "invoice_items",
     "invoices",
@@ -327,6 +328,7 @@ M1_APPROVED_TABLES = {
     "orders",
     "payments",
     "products",
+    "shipments",
     "transactions",
     "vendors",
 }
@@ -336,8 +338,6 @@ Explicitly blocked from M1:
 
 ```python
 M1_BLOCKED_TABLES = {
-    "shipments",
-    "customer_interactions",
     "audit_log",
     "conversations",
     "tax_chunks",
