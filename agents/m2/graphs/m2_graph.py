@@ -42,14 +42,17 @@ from agents.m2.nodes.human_approval_node import human_approval_node
 from agents.m2.nodes.offer_analysis_node import offer_analysis_node
 from agents.m2.nodes.rfq_builder_node import rfq_builder_node
 from agents.m2.nodes.rfq_send_node import rfq_send_node
+from agents.m2.nodes.pricing_advisor_node import pricing_advisor_node
 from agents.m2.schemas.m2_state import M2State
 
 # ── Routing functions ─────────────────────────────────────────────
 
-def route_detection(state: M2State) -> Literal["alert_generator_node", "__end__"]:
+def route_detection(state: M2State) -> Literal["alert_generator_node", "pricing_advisor_node", "__end__"]:
     dt = state.get("detection_type")
     if dt in ("low_stock", "predicted_shortage"):
         return "alert_generator_node"
+    elif dt in ["slow_moving", "near_expiry"]:
+        return "pricing_advisor_node"
     return END
 
 
@@ -75,12 +78,17 @@ def _build_workflow() -> StateGraph:
     wf.add_node("await_offers_node",    await_offers_node)     # explicit interrupt()
     wf.add_node("offer_analysis_node",  offer_analysis_node)
     wf.add_node("final_approval_node",  final_approval_node)   # 2nd gate
+    wf.add_node("pricing_advisor_node", pricing_advisor_node)  # Sprint 5
 
     # ── Edges ─────────────────────────────────────────────────────
     wf.add_conditional_edges(
         START,
         route_detection,
-        {"alert_generator_node": "alert_generator_node", END: END},
+        {
+            "alert_generator_node": "alert_generator_node",
+            "pricing_advisor_node": "pricing_advisor_node",
+            END: END,
+        },
     )
     wf.add_edge("alert_generator_node", "rfq_builder_node")
     wf.add_edge("rfq_builder_node",     "human_approval_node")
@@ -89,10 +97,11 @@ def _build_workflow() -> StateGraph:
         route_after_first_approval,
         {"rfq_send_node": "rfq_send_node", END: END},
     )
-    wf.add_edge("rfq_send_node",       "await_offers_node")
-    wf.add_edge("await_offers_node",   "offer_analysis_node")
-    wf.add_edge("offer_analysis_node", "final_approval_node")
-    wf.add_edge("final_approval_node", END)
+    wf.add_edge("rfq_send_node",        "await_offers_node")
+    wf.add_edge("await_offers_node",    "offer_analysis_node")
+    wf.add_edge("offer_analysis_node",  "final_approval_node")
+    wf.add_edge("final_approval_node",  END)
+    wf.add_edge("pricing_advisor_node", END)
 
     return wf
 
@@ -108,7 +117,6 @@ m2_app = _workflow.compile(
     checkpointer=MemorySaver(),
     interrupt_before=["human_approval_node", "final_approval_node"],
 )
-
 
 def build_m2_app_with_checkpointer(checkpointer):
     """

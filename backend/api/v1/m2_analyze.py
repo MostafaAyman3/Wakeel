@@ -27,6 +27,7 @@ from agents.m2.graphs.m2_graph import m2_app
 from agents.m2.nodes.inventory_check_node import inventory_check_node
 from backend.core.database import get_db_session
 from backend.models.m2_inventory_alert import InventoryAlert
+from backend.models.m2_pricing_recommendation import PricingRecommendation
 from backend.schemas.m2_analyze import (
     AlertData,
     AnalyzeRequest,
@@ -104,14 +105,22 @@ async def analyze_inventory(http_request: Request, body: AnalyzeRequest) -> Any:
                     )
                 )
 
-            # Collect pricing recommendations (Sprint 5)
+            # Collect pricing recommendations (Sprint 5) + save to DB
             if graph_result.get("pricing_recommendation"):
+                rec_text = graph_result["pricing_recommendation"]
                 pricing_recs.append(
                     PricingRecData(
                         product_id=prod_id,
-                        recommendation=graph_result["pricing_recommendation"],
+                        recommendation=rec_text,
                     )
                 )
+                session.add(
+                    PricingRecommendation(
+                        product_id=prod_id,
+                        recommendation_text=rec_text,
+                    )
+                )
+
 
         await session.commit()
 

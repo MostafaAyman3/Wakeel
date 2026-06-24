@@ -26,6 +26,7 @@ from backend.api.v1.m2_inventory import router as m2_inventory_router
 from backend.api.v1.m2_analyze import router as m2_analyze_router
 from backend.api.v1.m2_rfqs import router as m2_rfqs_router
 from backend.api.v1.m2_offers import router as m2_offers_router
+from backend.api.v1.m2_pricing import router as m2_pricing_router
 from backend.api.v1.m3_support import router as m3_router
 
 settings = get_settings()
@@ -113,6 +114,7 @@ app.include_router(m2_inventory_router, prefix="/api/v1")
 app.include_router(m2_analyze_router, prefix="/api/v1")
 app.include_router(m2_rfqs_router, prefix="/api/v1")
 app.include_router(m2_offers_router, prefix="/api/v1")
+app.include_router(m2_pricing_router, prefix="/api/v1")
 app.include_router(m3_router, prefix="/api/v1")
 
 
