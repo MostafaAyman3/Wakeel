@@ -125,3 +125,4 @@ RAG_SIMILARITY_THRESHOLD=0.75
 # (مش محتاجه — Odoo archived)
 # ─────────────────────────────────────────
 # odoo_client.py مرفوع في backend/archive — لا تستخدمه
+N8N_RFQ_WEBHOOK_URL=http://localhost:5678/webhook-test/c8787107-d718-488b-916c-e4034a8cde53

@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     rag_top_k: int = 5
     rag_similarity_threshold: float = 0.75
 
+    # M2 n8n webhooks
+    n8n_rfq_webhook_url: str = ""
+
     # M3 thresholds
     m3_repeat_issue_threshold: int = 2
     m3_confidence_review_threshold: float = 0.70

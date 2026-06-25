@@ -2,8 +2,7 @@
 RFQSendNode — executes the send action after manager approves an RFQ.
 
 Sprint 6: mock webhook — logs the full payload and updates rfqs.status = 'sent'.
-Sprint 9: replace _fire_mock_webhook() with a real httpx POST to the n8n
-          webhook URL that triggers Email Node → supplier email.
+Sprint 9: real httpx POST to n8n webhook URL (N8N_RFQ_WEBHOOK_URL in .env).
 """
 
 import logging
@@ -11,29 +10,38 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict
 
+import httpx
 from sqlalchemy import update
 
+from agents.m2.schemas.m2_state import M2State
+from backend.core.config import get_settings
 from backend.core.database import get_db_session
 from backend.models.m2_rfq import RFQ
-from agents.m2.schemas.m2_state import M2State
 
 logger = logging.getLogger(__name__)
 
 
-async def _fire_mock_webhook(payload: Dict[str, Any]) -> None:
+async def _fire_webhook(payload: Dict[str, Any]) -> None:
     """
-    Sprint 6 stub.  Sprint 9 replaces this body with:
-        async with httpx.AsyncClient() as client:
-            await client.post(settings.n8n_rfq_webhook_url, json=payload, timeout=10)
+    POSTs the RFQ payload to n8n if N8N_RFQ_WEBHOOK_URL is configured.
+    Falls back to logging when the URL is empty (dev / tests).
     """
-    logger.info(
-        "rfq_mock_webhook_fired",
-        extra={
-            "rfq_id": payload.get("rfq_id"),
-            "product": payload.get("product_name"),
-            "quantity": payload.get("suggested_quantity"),
-        },
-    )
+    webhook_url = get_settings().n8n_rfq_webhook_url
+
+    if not webhook_url:
+        logger.info(
+            "rfq_webhook_skipped_no_url",
+            extra={"rfq_id": payload.get("rfq_id"), "product": payload.get("product_name")},
+        )
+        return
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(webhook_url, json=payload)
+            resp.raise_for_status()
+        logger.info("rfq_webhook_fired", extra={"rfq_id": payload.get("rfq_id"), "status": resp.status_code})
+    except Exception as exc:
+        logger.warning("rfq_webhook_failed", extra={"rfq_id": payload.get("rfq_id"), "error": str(exc)})
 
 
 async def rfq_send_node(state: M2State) -> Dict[str, Any]:
@@ -88,7 +96,7 @@ async def rfq_send_node(state: M2State) -> Dict[str, Any]:
         "approval_notes": state.get("approval_notes", ""),
         "sent_at": sent_at,
     }
-    await _fire_mock_webhook(webhook_payload)
+    await _fire_webhook(webhook_payload)
 
     # ── 3. Return state update ────────────────────────────────────
     return {
