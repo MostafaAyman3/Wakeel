@@ -1,0 +1,142 @@
+{
+  "name": "M2 - Daily Inventory Analysis & Alerts (Workflow 1)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Schedule Trigger (Daily 8 AM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [ 250, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/v1/m2/analyze",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"trigger_source\": \"cron\",\n  \"language\": \"ar\"\n}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "2",
+      "name": "Call Analyze API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 450, 300 ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nlet message = `*تقرير تحليل المخزون اليومي (نظام وكيل)* 📊\\n\\n`;\nconst summary = data.scan_summary || {};\nmessage += `📦 إجمالي المنتجات التي تم فحصها: ${summary.total_products_checked || 0}\\n`;\nmessage += `📉 منتجات منخفضة المخزون: ${summary.low_stock_count || 0}\\n`;\nmessage += `⚠️ تنبؤ بنقص المخزون (استباقي): ${summary.predicted_shortage_count || 0}\\n`;\nmessage += `🐢 منتجات بطيئة الحركة: ${summary.slow_moving_count || 0}\\n`;\nmessage += `⏳ منتجات تقترب من انتهاء الصلاحية: ${summary.near_expiry_count || 0}\\n\\n`;\n\nif (data.alerts && data.alerts.length > 0) {\n  message += `*🚨 التنبيهات التفصيلية:*\\n`;\n  data.alerts.forEach((alert, index) => {\n    let typeAr = alert.alert_type;\n    if (typeAr === 'predicted_shortage') typeAr = 'نقص متوقع';\n    else if (typeAr === 'low_stock') typeAr = 'مخزون منخفض';\n    else if (typeAr === 'slow_moving') typeAr = 'بطيء الحركة';\n    else if (typeAr === 'near_expiry') typeAr = 'قريب الانتهاء';\n    \n    let details = '';\n    if (alert.alert_type === 'predicted_shortage' && alert.metadata && alert.metadata.days_until_stockout) {\n        details = ` (ينتهي خلال ${Math.round(alert.metadata.days_until_stockout)} يوم)`;\n    }\n\n    message += `${index + 1}. [${typeAr}] منتج رقم: ${alert.product_id}${details}\\n`;\n  });\n}\n\nif (data.rfq_drafts && data.rfq_drafts.length > 0) {\n    message += `\\n*📝 مسودات طلبات عروض الأسعار (RFQ):* تم إنشاء ${data.rfq_drafts.length} مسودة.\\n`;\n}\nif (data.pricing_recs && data.pricing_recs.length > 0) {\n    message += `\\n*💰 توصيات التسعير:* تم اقتراح ${data.pricing_recs.length} تعديل للأسعار.\\n`;\n}\n\nreturn { json: { message: message, original_data: data } };"
+      },
+      "id": "3",
+      "name": "Format Message (Arabic)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [ 650, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.whatsapp.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_WHATSAPP_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"YOUR_MANAGER_PHONE_NUMBER\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"{{$json.message}}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Send WhatsApp to Manager",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 850, 200 ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "system@wakeel.ai",
+        "toEmail": "manager@wakeel.ai",
+        "subject": "تقرير تحليل المخزون والتنبيهات (وكيل)",
+        "text": "={{$json.message}}",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Send Email to Manager",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [ 850, 400 ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (Daily 8 AM)": {
+      "main": [
+        [
+          {
+            "node": "Call Analyze API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Analyze API": {
+      "main": [
+        [
+          {
+            "node": "Format Message (Arabic)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Message (Arabic)": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp to Manager",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email to Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}
