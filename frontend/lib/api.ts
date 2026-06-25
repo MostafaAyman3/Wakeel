@@ -57,6 +57,7 @@ async function ensureAuth(): Promise<string> {
   return login();
 }
 
+/** Authenticated request — used for agent-only review actions. */
 async function request<T>(path: string, body: unknown): Promise<T> {
   let token = await ensureAuth();
 
@@ -72,7 +73,6 @@ async function request<T>(path: string, body: unknown): Promise<T> {
 
   let res = await doFetch(token);
 
-  // Token expired/invalid → re-login once and retry.
   if (res.status === 401) {
     clearToken();
     token = await login();
@@ -86,9 +86,23 @@ async function request<T>(path: string, body: unknown): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** Public request — no auth header (customer-facing /support endpoint). */
+async function publicRequest<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Request to ${path} failed (${res.status}): ${detail}`);
+  }
+  return (await res.json()) as T;
+}
+
 export const api = {
   submitSupport: (payload: SupportRequest) =>
-    request<SupportResponse>("/api/v1/support", payload),
+    publicRequest<SupportResponse>("/api/v1/support", payload),
 
   approve: (payload: {
     case_id: string;

@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from agents.m3.schemas.m3_state import M3State
-from agents.shared.llm_client import llm_primary
+from agents.shared.llm_client import llm_primary, llm_fast
 from backend.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -83,44 +83,47 @@ Your task is to generate a helpful response to the customer based ONLY on the da
 
 ## Rules (strict — follow every rule)
 
-1. **Language**: Respond in EXACTLY the same language as the customer's message.
-   - If the customer wrote in Arabic, respond in Arabic.
-   - If the customer wrote in English, respond in English.
-   - NEVER mix languages in the response.
+1. **Language**: You MUST respond in EXACTLY the same language as the customer's message.
+   - The "IMPORTANT: Respond ONLY in ..." instruction in the data block is mandatory.
+   - If the customer wrote in Arabic, your ENTIRE response must be in Arabic.
+   - If the customer wrote in English, your ENTIRE response must be in English.
+   - NEVER mix languages. NEVER switch mid-response.
 
 2. **Tone**: Simple, warm, non-technical, customer-friendly.
    - Do NOT use internal terminology like "issue_type", "context", "state", "LLM", "confidence".
    - Do NOT mention data sources, field names, or system internals.
 
-3. **Data completeness tiers** — choose exactly ONE:
+3. **Knowledge Base answers** (when a "Knowledge Base Answer" section is present):
+   - Lead with the knowledge base answer. Cite it naturally ("According to our policy, ...").
+   - Do NOT fabricate policy details not in the knowledge base answer.
+   - If CRM data is also present, combine both coherently in one response.
+
+4. **Data completeness tiers** (for CRM data — when present):
 
    Tier A — Full Data Available: All relevant information is provided below.
        → Generate a complete response including order status, invoice amount,
          shipping tracking, and delivery dates.
-       → Be specific and helpful.
-       → End with an offer to help further.
+       → Be specific and helpful. End with an offer to help further.
 
    Tier B — Partial Data Available: Some information is marked as "NOT AVAILABLE".
        → Include only the information that IS available.
-       → Append this exact message at the end (translated to the customer's language):
+       → Append (translated to the customer's language):
          "Some information is currently unavailable. Our support team will follow up within 24 hours."
        → Do NOT list which specific fields are missing.
 
-   Tier C — No Data Available: All fields are "NOT AVAILABLE".
+   Tier C — No Data Available: All fields are "NOT AVAILABLE" and no knowledge base answer.
        → Do NOT pretend to have information.
        → State that no matching record was found.
        → Ask the customer to verify their reference number or contact support.
-       → Keep it brief and apologetic.
 
-4. **Escalation**: If the customer's problem is marked as a "recurring issue",
-   append this message at the end of your response (translated correctly):
-   "We see that this is a recurring issue. Your case will be transferred to a senior support agent for follow-up."
+5. **Escalation**: If the customer's problem is marked as a "recurring issue",
+   append (translated correctly):
+   "We see that this is a recurring issue. Your case will be transferred to a senior support agent."
 
-5. **Truthfulness**: Only use the data provided below. NEVER invent or guess
-   order numbers, dates, amounts, or statuses. If a field says "NOT AVAILABLE",
-   do not mention it.
+6. **Truthfulness**: Only use the data provided below. NEVER invent or guess
+   order numbers, dates, amounts, statuses, or policy details.
 
-6. **Formatting**: Use plain text only. No markdown, no lists, no JSON.
+7. **Formatting**: Use plain text only. No markdown, no lists, no JSON.
    Write in full sentences. Use paragraph breaks for readability.
 """
 
@@ -136,6 +139,12 @@ async def generate_response(state: M3State) -> dict:
     4. Fall back to static template on LLM failure.
     """
     lang: str = state.get("language", "en") or "en"
+    # Fix 2 Part B (guard): if the language was never resolved (e.g. a future path
+    # that bypasses the router), re-detect from the customer message so we never
+    # silently fall back to English for an Arabic question.
+    if lang == "auto":
+        _msg = state.get("issue_description", "") or ""
+        lang = "ar" if any("؀" <= c <= "ۿ" for c in _msg) else "en"
     ctx: dict = state.get("context") or {}
     history: list[dict] | None = ctx.get("history")
     completeness: float = state.get("data_completeness", 0.0)
@@ -198,15 +207,22 @@ async def generate_response(state: M3State) -> dict:
     confidence_score = round(min(base + cls_score + ctx_score, 1.0), 2)
 
     # ── 3. Build prompt data ───────────────────────────────────────
-    prompt_data = _build_prompt_data(ctx, lang, completeness, is_recurring)
+    customer_message: str = state.get("issue_description", "") or ""
+    rag_context: str = state.get("rag_context", "") or ""
+    prompt_data = _build_prompt_data(ctx, lang, completeness, is_recurring, customer_message, rag_context)
 
     # ── 4. Generate response ───────────────────────────────────────
+    # Fix 6: pure knowledge answers are already grounded by Mini-RAG — this step
+    # only adds language/formatting polish, so use the faster model. Issue/hybrid
+    # (CRM reasoning) keep the primary model.
+    route = state.get("route", "customer_issue")
+    llm = llm_fast if route == "general_knowledge" else llm_primary
     try:
         messages = [
             SystemMessage(content=_SYSTEM_PROMPT),
             HumanMessage(content=prompt_data),
         ]
-        result = await llm_primary.ainvoke(messages)
+        result = await llm.ainvoke(messages)
         draft_response = result.content.strip() if result.content else ""
     except Exception as exc:
         logger.error("response_generation_failed", error=str(exc))
@@ -244,14 +260,28 @@ def _build_prompt_data(
     lang: str,
     completeness: float,
     is_recurring: bool,
+    customer_message: str = "",
+    rag_context: str = "",
 ) -> str:
     """Serialize context into a human-readable prompt block."""
     lines: list[str] = []
     lines.append(f"Customer language: {lang}")
+    lines.append(f"IMPORTANT: Respond ONLY in {'Arabic' if lang == 'ar' else 'English'}. Do not switch languages.")
     lines.append(f"Data completeness tier: {_tier_label(completeness)}")
     if is_recurring:
         lines.append("NOTE: This is a RECURRING issue — append the escalation message.")
     lines.append("")
+
+    if customer_message:
+        lines.append(f"Customer's original message: {customer_message}")
+        lines.append("")
+
+    if rag_context:
+        lines.append("## Knowledge Base Answer")
+        lines.append(rag_context)
+        lines.append("")
+        lines.append("(Use the knowledge base answer above to inform your response. Cite it naturally.)")
+        lines.append("")
 
     customer_name = ctx.get("customer_name", "Customer")
     lines.append(f"Customer name: {customer_name}")

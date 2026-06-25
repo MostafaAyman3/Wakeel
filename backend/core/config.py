@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     rag_top_k: int = 5
     rag_similarity_threshold: float = 0.75
 
+    # Mini-RAG microservice
+    mini_rag_base_url: str = "http://localhost:8001"
+    rag_support_kb_project_id: int = 1
+    rag_tax_project_id: int = 2
+
     # M3 thresholds
     m3_repeat_issue_threshold: int = 2
     m3_confidence_review_threshold: float = 0.70

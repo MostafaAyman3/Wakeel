@@ -1,0 +1,51 @@
+--- PLACEHOLDER DOCUMENT — replace with real FAQ before go-live ---
+
+# Frequently Asked Questions (FAQ) / الأسئلة الشائعة
+
+## English
+
+**Q: How do I track my order?**
+A: Once your order ships, you will receive a tracking number by email. You can enter it on the carrier's website or ask our support chat to check the status for you.
+
+**Q: Can I change or cancel my order after placing it?**
+A: Orders can be modified or cancelled within 1 hour of placement. After that, the order enters processing and changes may not be possible. Contact support immediately if you need to make a change.
+
+**Q: What payment methods do you accept?**
+A: We accept credit/debit cards (Visa, Mastercard), Fawry, Vodafone Cash, and bank transfers.
+
+**Q: My order says "delivered" but I haven't received it — what should I do?**
+A: First, check around your delivery address for the package. If you still cannot locate it, contact us within 48 hours and we will open an investigation with the carrier.
+
+**Q: How long does a refund take?**
+A: Approved refunds are processed within 5–7 business days back to your original payment method.
+
+**Q: Do you ship internationally?**
+A: Currently we ship within Egypt only. International shipping will be available in a future update.
+
+**Q: How do I contact customer support?**
+A: You can reach us through the chat on this page, by email at support@example.com, or by calling 19XXX during business hours (9 AM – 5 PM, Sunday–Thursday).
+
+---
+
+## العربية
+
+**س: كيف أتتبع طلبي؟**
+ج: بعد شحن طلبك، ستتلقى رقم تتبع عبر البريد الإلكتروني. يمكنك إدخاله في موقع شركة الشحن أو سؤال دردشة الدعم للاطلاع على الحالة.
+
+**س: هل يمكنني تعديل أو إلغاء طلبي بعد تقديمه؟**
+ج: يمكن تعديل الطلبات أو إلغاؤها خلال ساعة واحدة من تقديمها. بعد ذلك، يدخل الطلب في مرحلة المعالجة وقد لا يمكن إجراء تغييرات. تواصل مع الدعم فورًا إذا احتجت إلى تعديل.
+
+**س: ما طرق الدفع المتاحة؟**
+ج: نقبل بطاقات الائتمان/الخصم (Visa وMastercard) وفوري وفودافون كاش والتحويل البنكي.
+
+**س: يظهر طلبي "تم التوصيل" لكنني لم أستلمه — ماذا أفعل؟**
+ج: أولًا، تحقق حول عنوان التسليم. إذا لم تعثر على الطرد، تواصل معنا خلال 48 ساعة وسنفتح تحقيقًا مع شركة الشحن.
+
+**س: كم تستغرق استعادة المبلغ المسترد؟**
+ج: تُعالَج المبالغ المستردة المعتمدة خلال 5–7 أيام عمل إلى وسيلة الدفع الأصلية.
+
+**س: هل تشحنون دوليًا؟**
+ج: حاليًا نشحن داخل مصر فقط. سيتوفر الشحن الدولي في تحديث مستقبلي.
+
+**س: كيف أتواصل مع خدمة العملاء؟**
+ج: يمكنك التواصل معنا عبر الدردشة في هذه الصفحة، أو عبر البريد الإلكتروني support@example.com، أو بالاتصال على 19XXX خلال ساعات العمل (9 صباحًا – 5 مساءً، الأحد–الخميس).

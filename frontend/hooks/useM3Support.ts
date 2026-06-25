@@ -1,10 +1,6 @@
 "use client";
 
-// useM3Support — manages the M3 customer-support flow:
-//   submit a query -> receive draft + transparency data -> agent review
-//   actions (approve / reject+regenerate / escalate).
-
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
 import type {
@@ -13,13 +9,21 @@ import type {
   SupportRequest,
   SupportResponse,
 } from "@/types/m3";
+import type { ChatMessage } from "@/components/chat/MessageBubble";
+
+// Stable session id for the lifetime of the page.
+function makeSessionId(): string {
+  return `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 export interface UseM3Support {
   loading: boolean;
   error: string | null;
+  messages: ChatMessage[];
   response: SupportResponse | null;
   caseId: string | null;
   actionResult: ReviewActionResponse | null;
+  sendMessage: (text: string) => Promise<void>;
   submit: (
     query: string,
     identifier?: CustomerIdentifier | null,
@@ -34,16 +38,16 @@ export interface UseM3Support {
 export function useM3Support(): UseM3Support {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [response, setResponse] = useState<SupportResponse | null>(null);
   const [caseId, setCaseId] = useState<string | null>(null);
-  const [actionResult, setActionResult] = useState<ReviewActionResponse | null>(
-    null,
-  );
-  // Remember the last submission so Reject & Regenerate can replay it.
-  const [lastRequest, setLastRequest] = useState<{
-    query: string;
-    identifier: CustomerIdentifier | null;
-  } | null>(null);
+  const [actionResult, setActionResult] = useState<ReviewActionResponse | null>(null);
+  const sessionIdRef = useRef<string>(makeSessionId());
+  const lastRequestRef = useRef<{ query: string; identifier: CustomerIdentifier | null } | null>(null);
+
+  const addMessage = useCallback((msg: Omit<ChatMessage, "id">) => {
+    setMessages((prev) => [...prev, { ...msg, id: `${Date.now()}-${Math.random()}` }]);
+  }, []);
 
   const submit = useCallback(
     async (
@@ -59,19 +63,37 @@ export function useM3Support(): UseM3Support {
           query,
           identifier: identifier ?? null,
           rejection_context: rejectionContext ?? null,
+          session_id: sessionIdRef.current,
         };
         const res = await api.submitSupport(payload);
         setResponse(res);
-        setLastRequest({ query, identifier: identifier ?? null });
-        // Derive a case id for review actions (identifier value, else a stamp).
+        lastRequestRef.current = { query, identifier: identifier ?? null };
         setCaseId(identifier?.value || `case-${Date.now()}`);
+
+        addMessage({
+          role: "assistant",
+          content: res.final_response || res.draft_response,
+          route: res.route,
+          rag_sources: res.rag_sources,
+          review_required: res.review_required,
+          escalation_needed: res.escalation_needed,
+        });
       } catch (e) {
         setError(e instanceof Error ? e.message : "Request failed");
       } finally {
         setLoading(false);
       }
     },
-    [],
+    [addMessage],
+  );
+
+  /** Chat-mode: add the user bubble, then call submit. */
+  const sendMessage = useCallback(
+    async (text: string) => {
+      addMessage({ role: "user", content: text });
+      await submit(text);
+    },
+    [addMessage, submit],
   );
 
   const approve = useCallback(
@@ -110,15 +132,11 @@ export function useM3Support(): UseM3Support {
           confidence_score: response.confidence_score,
         });
         setActionResult(result);
-        // Reject & Regenerate: replay the original query/identifier, this time
-        // passing the rejection context so the agent improves the response.
-        if (lastRequest) {
+        if (lastRequestRef.current) {
           await submit(
-            lastRequest.query,
-            lastRequest.identifier,
-            (result.rejection_context as Record<string, unknown>) ?? {
-              feedback,
-            },
+            lastRequestRef.current.query,
+            lastRequestRef.current.identifier,
+            (result.rejection_context as Record<string, unknown>) ?? { feedback },
           );
         }
       } catch (e) {
@@ -127,7 +145,7 @@ export function useM3Support(): UseM3Support {
         setLoading(false);
       }
     },
-    [response, caseId, submit, lastRequest],
+    [response, caseId, submit],
   );
 
   const escalate = useCallback(
@@ -153,18 +171,22 @@ export function useM3Support(): UseM3Support {
   );
 
   const reset = useCallback(() => {
+    setMessages([]);
     setResponse(null);
     setCaseId(null);
     setActionResult(null);
     setError(null);
+    sessionIdRef.current = makeSessionId();
   }, []);
 
   return {
     loading,
     error,
+    messages,
     response,
     caseId,
     actionResult,
+    sendMessage,
     submit,
     approve,
     reject,

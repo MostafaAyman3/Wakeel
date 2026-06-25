@@ -112,6 +112,11 @@ def build_context(state: M3State) -> dict:
     if completeness < 1.0 and missing:
         context["missing_fields"] = missing
 
+    # RAGEnrich: if Mini-RAG returned knowledge context, include it
+    rag_context: str = state.get("rag_context", "") or ""
+    if rag_context:
+        context["knowledge"] = rag_context
+
     logger.info("context_built",
                 customer_name=context["customer_name"],
                 has_invoice=context["invoice"] is not None,

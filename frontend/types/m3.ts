@@ -17,10 +17,17 @@ export interface CustomerIdentifier {
   value: string;
 }
 
+export type RouteType =
+  | "greeting"
+  | "general_knowledge"
+  | "customer_issue"
+  | "hybrid";
+
 export interface SupportRequest {
   query: string;
   identifier?: CustomerIdentifier | null;
   rejection_context?: Record<string, unknown> | null;
+  session_id?: string | null;
 }
 
 export interface TransparencyData {
@@ -39,6 +46,8 @@ export interface SupportResponse {
   escalation_needed: boolean;
   escalation_summary: Record<string, unknown>;
   issue_type: IssueType | null;
+  route: RouteType;
+  rag_sources: string[];
   transparency_data: TransparencyData;
   missing_fields: string[];
 }

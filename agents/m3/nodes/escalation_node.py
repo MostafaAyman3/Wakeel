@@ -22,6 +22,12 @@ async def escalate_case(state: M3State) -> dict:
     fetched_data = state.get("fetched_data", {})
     issue_description = state.get("issue_description", "")
 
+    # Fix 5: the no-data escalation branch skips the IssueClassifier, so issue_type
+    # is often None here. Infer a lightweight category from the message text so the
+    # escalation summary + audit trail are labelled (no customer-facing impact).
+    if not issue_type:
+        issue_type = _infer_issue_type(issue_description)
+
     reason = _get_escalation_reason(state)
 
     summary: dict = {
@@ -72,6 +78,26 @@ async def escalate_case(state: M3State) -> dict:
         "final_response": final_response,
         "escalation_summary": summary,
     }
+
+
+_ISSUE_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "refund_request": ("refund", "money back", "استرداد", "ارجاع فلوس", "استرجاع"),
+    "billing_dispute": ("invoice", "charge", "overcharge", "bill", "فاتورة", "خصم", "مبلغ"),
+    "shipping_issue": ("ship", "delivery", "deliver", "courier", "track", "شحن", "توصيل", "تتبع"),
+    "status_inquiry": ("where is", "status", "when will", "أين", "حالة", "متى"),
+}
+
+
+def _infer_issue_type(text: str) -> str | None:
+    """Best-effort keyword classification when the classifier was skipped."""
+    if not text:
+        return None
+    low = text.lower()
+    # refund/billing take precedence (financial) over status/shipping
+    for itype in ("refund_request", "billing_dispute", "shipping_issue", "status_inquiry"):
+        if any(kw in low for kw in _ISSUE_KEYWORDS[itype]):
+            return itype
+    return "general_complaint"
 
 
 def _get_escalation_reason(state: M3State) -> str:

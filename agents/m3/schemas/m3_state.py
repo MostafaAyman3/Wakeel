@@ -16,7 +16,7 @@ endpoint initializes every field with a safe default before invoking the graph.
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Literal, Optional, TypedDict
 
 IssueType = Literal[
     "status_inquiry",
@@ -35,6 +35,18 @@ class M3State(TypedDict, total=False):
     Fields are grouped by pipeline stage. Sprint 1 populates the Input,
     Fetch, and Completeness groups; later sprints fill the rest.
     """
+
+    # ── Intent Router (Unified Support — IntentRouterNode) ───────
+    route: Literal["greeting", "general_knowledge", "customer_issue", "hybrid"]
+    route_confidence: float         # 0.0 -> 1.0
+    rag_collection: Literal["support_kb", "tax", "none"]  # which Mini-RAG collection
+
+    # ── RAG (Unified Support — RagNode) ──────────────────────────
+    rag_context: str                # answer text returned by Mini-RAG
+    rag_sources: list[str]          # source document names from Mini-RAG
+
+    # ── Conversation memory (Fix 3 — passed to the router for follow-ups) ─
+    chat_history: list              # [{role, content}] prior turns (when session_id)
 
     # ── Input (Sprint 1 — InputParserNode) ────────────────────────
     customer_identifier: dict     # { "type": IdentifierType, "value": str }
@@ -88,6 +100,13 @@ def build_initial_state(
         A ready-to-invoke M3State.
     """
     return {
+        # Intent router defaults
+        "route": "customer_issue",
+        "route_confidence": 0.0,
+        "rag_collection": "none",
+        "rag_context": "",
+        "rag_sources": [],
+        # Input
         "customer_identifier": identifier or {},
         "issue_description": query,
         "language": language,

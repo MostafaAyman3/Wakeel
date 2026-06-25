@@ -11,8 +11,16 @@ _FINANCIAL_KEYWORDS = [
     "استرداد", "تعويض", "خصم", "سيدفع", "سوف تحصل",
 ]
 _DELIVERY_PROMISE_KEYWORDS = [
-    "will arrive", "will be delivered", "by", "within",
+    "will arrive", "will be delivered",
     "سيصل", "سيتم التوصيل", "خلال", "في موعد",
+]
+# Phrase-level patterns: specific enough to avoid common false positives.
+# "by X" is only a promise when X is a time reference, not a preposition of agent.
+_DELIVERY_PROMISE_PHRASES = [
+    "by tomorrow", "by end of", "by monday", "by tuesday", "by wednesday",
+    "by thursday", "by friday", "by saturday", "by sunday", "by next",
+    "within 24", "within 48", "within 1 ", "within 2 ", "within 3 ",
+    "within one", "within two", "within three",
 ]
 
 
@@ -25,6 +33,10 @@ def _contains_financial_commitment(text: str) -> bool:
             return True
     for kw in _DELIVERY_PROMISE_KEYWORDS:
         if kw in text_lower:
+            return True
+    padded = f" {text_lower} "
+    for phrase in _DELIVERY_PROMISE_PHRASES:
+        if phrase in padded:
             return True
     return False
 
@@ -49,6 +61,15 @@ async def human_review_gate(state: M3State) -> dict:
     confidence = state.get("confidence_score", 0.0)
     escalation_needed = state.get("escalation_needed", False)
     draft_response = state.get("draft_response", "")
+    route = state.get("route", "customer_issue")
+
+    # Fix 1 (Option A): pure-knowledge / greeting answers are grounded in the
+    # curated KB and make no account-specific or financial commitment, so they
+    # never need human review. Short-circuit BEFORE the confidence/keyword checks
+    # (a CRM-centric confidence of 0.0 must not hold a valid knowledge answer).
+    if route in ("greeting", "general_knowledge"):
+        logger.info("review_gate_routing", decision="auto_send", reason="knowledge_or_greeting", route=route)
+        return {"review_required": False}
 
     # escalation_needed → skip review, go directly to escalation
     if escalation_needed:

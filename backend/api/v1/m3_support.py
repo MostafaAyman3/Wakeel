@@ -26,6 +26,10 @@ from backend.services.human_review_service import (
     reject_response,
     escalate_manually,
 )
+from backend.repositories.conversations import (
+    load_conversation_history,
+    append_conversation_turn,
+)
 
 router = APIRouter(prefix="/support", tags=["M3 Customer Support"])
 logger = get_logger(__name__)
@@ -39,9 +43,10 @@ class CustomerIdentifier(BaseModel):
 
 
 class SupportRequest(BaseModel):
-    query: str = Field(..., min_length=3, max_length=2000)
+    query: str = Field(..., min_length=1, max_length=2000)  # allow short greetings ("Hi")
     identifier: CustomerIdentifier | None = None
-    rejection_context: dict | None = None  # Sprint 4: Reject & Regenerate
+    rejection_context: dict | None = None
+    session_id: str | None = None  # optional; enables conversation memory
 
 
 # ── Response schemas ─────────────────────────────────────────────
@@ -62,67 +67,99 @@ class TransparencyData(BaseModel):
 
 class SupportResponse(BaseModel):
     draft_response: str
-    final_response: str            # Sprint 4: populated after review/escalation
+    final_response: str            # customer-facing; "agent will follow up" when held
     confidence_score: float
     confidence_label: str          # High | Medium | Low — review UI only
     review_required: bool
     escalation_needed: bool
-    escalation_summary: dict       # Sprint 4: populated when escalated
-    issue_type: str | None = None  # populated in Sprint 2
+    escalation_summary: dict
+    issue_type: str | None = None
+    route: str = "customer_issue"  # greeting | general_knowledge | customer_issue | hybrid
+    rag_sources: list[str] = []    # source doc names from Mini-RAG
     transparency_data: TransparencyData
     missing_fields: list[str] = []
 
 
 # ── Endpoint ─────────────────────────────────────────────────────
 
+_REVIEW_HOLD_AR = "\u0633\u064a\u062a\u0648\u0627\u0635\u0644 \u0645\u0639\u0643 \u0623\u062d\u062f \u0623\u0641\u0631\u0627\u062f \u0641\u0631\u064a\u0642 \u0627\u0644\u062f\u0639\u0645 \u0642\u0631\u064a\u0628\u0627\u064b \u0644\u0644\u0645\u062a\u0627\u0628\u0639\u0629."
+_REVIEW_HOLD_EN = "An agent will follow up with you shortly."
+
+
 @router.post("", response_model=SupportResponse)
 async def handle_support_request(
     request: SupportRequest,
-    user: UserContext = Depends(get_current_user),
 ) -> SupportResponse:
-    """Process a customer support query through the M3 agent graph.
+    """Process a customer support query \u2014 public endpoint (no auth required).
 
-    Sprint 1+2 scope: parse input -> fetch data (4 sources, parallel) ->
-    score completeness -> classify issue -> build context. Response
-    generation (draft_response) and the human review gate land in
-    Sprints 3-4, so ``draft_response`` is empty here.
+    Routes through the M3 agent graph (intent router \u2192 RAG / CRM pipeline).
+    When review_required=True the customer-facing final_response is replaced
+    with a neutral waiting message; the draft stays in transparency_data for
+    the agent review panel only.
     """
     logger.info(
         "support_request_received",
-        user_id=user.user_id,
         has_identifier=request.identifier is not None,
+        has_session=request.session_id is not None,
         query_length=len(request.query),
     )
 
     try:
         from agents.m3.graphs.m3_graph import support_graph
 
+        # Load prior conversation turns for session memory
+        chat_history: list[dict] = []
+        if request.session_id:
+            chat_history = await load_conversation_history(request.session_id)
+
         identifier = request.identifier.model_dump() if request.identifier else None
         initial_state = build_initial_state(query=request.query, identifier=identifier)
         if request.rejection_context:
             initial_state["rejection_context"] = request.rejection_context
+        if chat_history:
+            initial_state["chat_history"] = chat_history
 
         result: dict = await support_graph.ainvoke(initial_state)
 
         fetched = result.get("fetched_data") or {}
         confidence = float(result.get("confidence_score", 0.0))
+        review_required = bool(result.get("review_required", False))
+        escalation_needed = bool(result.get("escalation_needed", False))
+        draft = result.get("draft_response", "")
+        final = result.get("final_response", "")
+
+        # Review-hold shaping: hide the draft from the customer
+        lang = result.get("language", "en") or "en"
+        if review_required and not escalation_needed:
+            final = _REVIEW_HOLD_AR if lang == "ar" else _REVIEW_HOLD_EN
+
+        # Persist this turn for session memory
+        if request.session_id:
+            await append_conversation_turn(
+                session_id=request.session_id,
+                user_message=request.query,
+                assistant_message=final,
+            )
 
         logger.info(
             "support_request_completed",
-            user_id=user.user_id,
+            route=result.get("route", "customer_issue"),
             data_completeness=result.get("data_completeness", 0.0),
-            escalation_needed=result.get("escalation_needed", False),
+            escalation_needed=escalation_needed,
+            review_required=review_required,
         )
 
         return SupportResponse(
-            draft_response=result.get("draft_response", ""),
-            final_response=result.get("final_response", ""),
+            draft_response=draft,
+            final_response=final,
             confidence_score=confidence,
             confidence_label=get_confidence_label(confidence),
-            review_required=bool(result.get("review_required", False)),
-            escalation_needed=bool(result.get("escalation_needed", False)),
+            review_required=review_required,
+            escalation_needed=escalation_needed,
             escalation_summary=result.get("escalation_summary", {}),
             issue_type=result.get("issue_type"),
+            route=result.get("route", "customer_issue"),
+            rag_sources=result.get("rag_sources", []),
             transparency_data=TransparencyData(
                 invoice=fetched.get("invoice"),
                 order=fetched.get("order"),
@@ -133,14 +170,11 @@ async def handle_support_request(
         )
 
     except Exception as exc:
-        logger.error("support_request_failed", user_id=user.user_id, error=str(exc))
+        logger.error("support_request_failed", error=str(exc))
 
         lang = "ar" if any("\u0600" <= c <= "\u06FF" for c in request.query) else "en"
         message = (
-            "\u062d\u062f\u062b \u062e\u0637\u0623 \u0623\u062b\u0646\u0627\u0621 "
-            "\u0645\u0639\u0627\u0644\u062c\u0629 \u0637\u0644\u0628\u0643. "
-            "\u0633\u064a\u062a\u0648\u0627\u0635\u0644 \u0645\u0639\u0643 "
-            "\u0641\u0631\u064a\u0642 \u0627\u0644\u062f\u0639\u0645 \u0642\u0631\u064a\u0628\u0627\u064b."
+            "\u062d\u062f\u062b \u062e\u0637\u0623 \u0623\u062b\u0646\u0627\u0621 \u0645\u0639\u0627\u0644\u062c\u0629 \u0637\u0644\u0628\u0643. \u0633\u064a\u062a\u0648\u0627\u0635\u0644 \u0645\u0639\u0643 \u0641\u0631\u064a\u0642 \u0627\u0644\u062f\u0639\u0645 \u0642\u0631\u064a\u0628\u0627\u064b."
             if lang == "ar"
             else "An error occurred while processing your request. "
             "Our support team will reach out shortly."
@@ -155,6 +189,8 @@ async def handle_support_request(
             escalation_needed=True,
             escalation_summary={"escalation_reason": "System error during processing"},
             issue_type=None,
+            route="customer_issue",
+            rag_sources=[],
             transparency_data=TransparencyData(),
             missing_fields=["invoice", "order", "shipping", "history"],
         )

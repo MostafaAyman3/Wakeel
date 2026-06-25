@@ -1,164 +1,127 @@
 "use client";
 
-// Wakeel — Customer Support Desk (M3 demo MVP).
-// The case flows through a real pipeline: Intake → Draft → Review → Decision.
-// One screen tells the whole human-in-the-loop story.
-
 import { useState } from "react";
 
-import CustomerInputForm from "@/components/m3/CustomerInputForm";
+import { ChatInterface } from "@/components/chat/ChatInterface";
 import HumanReviewPanel from "@/components/m3/HumanReviewPanel";
 import { useM3Support } from "@/hooks/useM3Support";
 
-type Stage = "intake" | "review";
-
-const STEPS = [
-  { key: "intake", n: "01", label: "Intake" },
-  { key: "draft", n: "02", label: "AI draft" },
-  { key: "review", n: "03", label: "Review" },
-  { key: "decision", n: "04", label: "Decision" },
-] as const;
+type View = "chat" | "review";
 
 export default function M3Page() {
-  const [stage, setStage] = useState<Stage>("intake");
+  const [view, setView] = useState<View>("chat");
   const {
     loading,
     error,
+    messages,
     response,
     actionResult,
-    submit,
+    sendMessage,
     approve,
     reject,
     escalate,
     reset,
   } = useM3Support();
 
-  // Current step index for the pipeline indicator.
-  const stepIndex = actionResult
-    ? 3
-    : response
-    ? 2
-    : loading
-    ? 1
-    : 0;
-
-  async function handleCustomerSubmit(
-    query: string,
-    identifier: Parameters<typeof submit>[1],
-  ) {
-    await submit(query, identifier);
-    setStage("review");
-  }
+  const hasReview = response?.review_required && !response.escalation_needed;
 
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       {/* Brand bar */}
       <header className="bg-petrol-deep text-paper">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3.5">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-3.5">
           <div className="flex items-baseline gap-2.5">
-            <span className="font-display text-lg font-bold tracking-tight">
-              وكيل
-            </span>
+            <span className="font-display text-lg font-bold tracking-tight">وكيل</span>
             <span className="font-display text-sm font-medium uppercase tracking-[0.2em] text-paper/70">
               Wakeel
             </span>
           </div>
-          <div className="flex items-center gap-2 text-paper/80">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber" />
-            <span className="code text-[11px] uppercase tracking-wider">
-              support desk · live
-            </span>
+          <div className="flex items-center gap-3">
+            {hasReview && (
+              <span className="flex items-center gap-1.5 rounded-full bg-amber/20 px-3 py-1 text-[11px] font-semibold text-amber">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber" />
+                Review pending
+              </span>
+            )}
+            <div className="flex rounded-full border border-paper/20 bg-paper/10 p-0.5 text-sm">
+              <button
+                onClick={() => setView("chat")}
+                className={`rounded-full px-4 py-1.5 text-xs font-medium transition ${
+                  view === "chat" ? "bg-paper text-petrol-deep" : "text-paper/70 hover:text-paper"
+                }`}
+              >
+                Customer
+              </button>
+              <button
+                onClick={() => setView("review")}
+                disabled={!response}
+                className={`rounded-full px-4 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                  view === "review" ? "bg-paper text-petrol-deep" : "text-paper/70 hover:text-paper"
+                }`}
+              >
+                Agent
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-5 py-7">
-        {/* Pipeline stepper — the case really moves through these stages. */}
-        <ol className="mb-7 flex items-center gap-2">
-          {STEPS.map((s, i) => {
-            const active = i === stepIndex;
-            const done = i < stepIndex;
-            return (
-              <li key={s.key} className="flex flex-1 items-center gap-2">
-                <div
-                  className={`flex items-center gap-2 rounded-full px-3 py-1.5 transition ${
-                    active
-                      ? "bg-petrol text-paper"
-                      : done
-                      ? "bg-petrol/10 text-petrol-deep"
-                      : "bg-paper text-sage border border-line"
-                  }`}
-                >
-                  <span className="code text-[11px] font-semibold">{s.n}</span>
-                  <span className="text-xs font-medium">{s.label}</span>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <span
-                    className={`h-px flex-1 ${done ? "bg-petrol/40" : "bg-line"}`}
-                  />
-                )}
-              </li>
-            );
-          })}
-        </ol>
-
-        {/* View toggle */}
-        <div className="mb-5 flex items-center justify-between">
-          <h1 className="font-display text-xl font-semibold text-ink">
-            {stage === "intake" ? "Customer intake" : "Agent review"}
-          </h1>
-          <div className="flex rounded-full border border-line bg-paper p-0.5 text-sm">
-            <button
-              onClick={() => setStage("intake")}
-              className={`rounded-full px-4 py-1.5 font-medium transition ${
-                stage === "intake" ? "bg-petrol text-paper" : "text-sage hover:text-ink"
-              }`}
-            >
-              Customer
-            </button>
-            <button
-              onClick={() => setStage("review")}
-              disabled={!response}
-              className={`rounded-full px-4 py-1.5 font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                stage === "review" ? "bg-petrol text-paper" : "text-sage hover:text-ink"
-              }`}
-            >
-              Agent
-            </button>
-          </div>
-        </div>
-
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 py-6">
         {error && (
           <div className="mb-4 rounded-card border border-alert/40 bg-alert/[0.07] px-4 py-3 text-sm text-alert">
             {error}
           </div>
         )}
 
-        <div className="animate-riseIn rounded-card border border-line bg-paper/60 p-6 shadow-desk backdrop-blur-sm">
-          {stage === "intake" && (
-            <div className="mx-auto max-w-xl">
-              <CustomerInputForm onSubmit={handleCustomerSubmit} loading={loading} />
+        {view === "chat" && (
+          <div className="flex flex-1 flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="font-display text-lg font-semibold text-ink">Support Chat</h1>
+                <p className="text-xs text-sage">
+                  Ask about your order, invoice, policies, or anything else.
+                </p>
+              </div>
+              {messages.length > 0 && (
+                <button
+                  onClick={reset}
+                  className="text-xs font-medium text-petrol hover:text-petrol-deep"
+                >
+                  + New chat
+                </button>
+              )}
             </div>
-          )}
+            <div className="flex-1">
+              <ChatInterface
+                messages={messages}
+                loading={loading}
+                onSend={sendMessage}
+              />
+            </div>
+          </div>
+        )}
 
-          {stage === "review" &&
-            (!response ? (
-              <p className="py-10 text-center text-sm text-sage">
-                Submit a case from the customer view to begin a review.
-              </p>
+        {view === "review" && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h1 className="font-display text-lg font-semibold text-ink">Agent Review</h1>
+              <button
+                onClick={() => {
+                  reset();
+                  setView("chat");
+                }}
+                className="text-sm font-medium text-petrol hover:text-petrol-deep"
+              >
+                + New case
+              </button>
+            </div>
+
+            {!response ? (
+              <div className="rounded-card border border-line bg-paper/60 px-6 py-12 text-center text-sm text-sage shadow-desk">
+                Send a message in the Customer view to generate a case for review.
+              </div>
             ) : (
-              <>
-                <div className="mb-5 flex justify-end">
-                  <button
-                    onClick={() => {
-                      reset();
-                      setStage("intake");
-                    }}
-                    className="text-sm font-medium text-petrol hover:text-petrol-deep"
-                  >
-                    + New case
-                  </button>
-                </div>
+              <div className="rounded-card border border-line bg-paper/60 p-6 shadow-desk backdrop-blur-sm">
                 <HumanReviewPanel
                   response={response}
                   loading={loading}
@@ -167,14 +130,10 @@ export default function M3Page() {
                   onReject={reject}
                   onEscalate={escalate}
                 />
-              </>
-            ))}
-        </div>
-
-        <footer className="mt-6 text-center text-[11px] text-sage">
-          The confidence signal and evidence panel are internal — shown to the
-          agent only, never to the customer.
-        </footer>
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

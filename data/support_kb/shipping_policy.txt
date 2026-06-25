@@ -1,0 +1,49 @@
+--- PLACEHOLDER DOCUMENT — replace with real policy before go-live ---
+
+# Shipping Policy / سياسة الشحن
+
+## English
+
+**Processing Time**
+Orders are processed within 1–2 business days after payment confirmation. Orders placed on weekends or public holidays are processed on the next business day.
+
+**Delivery Timeframes**
+| Shipping Method       | Estimated Delivery |
+|-----------------------|--------------------|
+| Standard Shipping     | 5–7 business days  |
+| Express Shipping      | 2–3 business days  |
+| Same-Day (select areas) | Same business day if ordered before 12:00 PM |
+
+**Shipping Fees**
+- Standard shipping is free on orders over 200 EGP.
+- Express shipping fees vary based on location and are shown at checkout.
+
+**Tracking Your Order**
+Once your order ships, you will receive a confirmation email with a tracking number. You can track your shipment on the carrier's website or through our support chat.
+
+**Delivery Issues**
+If your order has not arrived within the estimated timeframe, please contact customer support with your order number so we can investigate.
+
+---
+
+## العربية
+
+**وقت المعالجة**
+تُعالَج الطلبات خلال 1–2 يوم عمل بعد تأكيد الدفع. تُعالَج الطلبات المقدَّمة في عطل نهاية الأسبوع أو الإجازات الرسمية في يوم العمل التالي.
+
+**مواعيد التسليم**
+| طريقة الشحن           | التسليم المتوقع               |
+|-----------------------|-------------------------------|
+| الشحن العادي          | 5–7 أيام عمل                  |
+| الشحن السريع          | 2–3 أيام عمل                  |
+| التسليم في نفس اليوم  | نفس يوم العمل للطلبات قبل 12 ظهرًا (مناطق محددة) |
+
+**رسوم الشحن**
+- الشحن العادي مجاني للطلبات التي تتجاوز 200 جنيه.
+- تتفاوت رسوم الشحن السريع حسب الموقع وتظهر عند الدفع.
+
+**تتبع طلبك**
+بعد شحن طلبك، ستتلقى بريدًا إلكترونيًا بتأكيد الشحن يتضمن رقم التتبع. يمكنك تتبع شحنتك على موقع شركة الشحن أو من خلال دردشة الدعم.
+
+**مشكلات التسليم**
+إذا لم يصل طلبك في الموعد المقدَّر، تواصل مع خدمة العملاء برقم طلبك وسنتحقق من الأمر.
