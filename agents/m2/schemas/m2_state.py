@@ -194,6 +194,12 @@ class M2State(TypedDict, total=False):
     used to resume the graph from OfferAnalysisNode.
     """
 
+    vendor_email: str
+    """Email address of the selected vendor (set by RFQBuilderNode, used by RFQSendNode)."""
+
+    vendor_name: str
+    """Display name of the selected vendor."""
+
     # ── Pricing Path Fields ───────────────────────────────────────
     pricing_recommendation: str
     """

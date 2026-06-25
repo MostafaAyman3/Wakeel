@@ -40,6 +40,12 @@ class RFQ(Base):
     thread_id: Mapped[Optional[str]] = mapped_column(
         String(128), unique=True, index=True, nullable=True
     )
+    vendor_email: Mapped[Optional[str]] = mapped_column(
+        String(200), nullable=True
+    )
+    vendor_name: Mapped[Optional[str]] = mapped_column(
+        String(200), nullable=True
+    )
     alert_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )

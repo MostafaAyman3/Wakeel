@@ -7,9 +7,10 @@ can resume the graph by looking up thread_id via rfq_id.
 """
 
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Tuple
 
 from langchain_core.messages import HumanMessage
+from sqlalchemy import text
 
 from agents.m2.schemas.m2_state import M2State
 from agents.shared.llm_client import llm_primary
@@ -39,10 +40,45 @@ NOT Egyptian dialect. Dialect is for internal chat only.
 """
 
 
+async def _pick_vendor(session, product_category: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """
+    Returns (vendor_id, vendor_name, vendor_email) for the best matching vendor.
+    Priority: same category → any vendor with email → any vendor.
+    """
+    row = (await session.execute(
+        text("""
+            SELECT id::text, name, contact_email
+            FROM vendors
+            WHERE contact_email IS NOT NULL
+              AND category = :cat
+            ORDER BY name
+            LIMIT 1
+        """),
+        {"cat": product_category},
+    )).mappings().first()
+
+    if not row:
+        row = (await session.execute(
+            text("""
+                SELECT id::text, name, contact_email
+                FROM vendors
+                WHERE contact_email IS NOT NULL
+                ORDER BY name
+                LIMIT 1
+            """)
+        )).mappings().first()
+
+    if not row:
+        return None, None, None
+
+    return row["id"], row["name"], row["contact_email"]
+
+
 async def rfq_builder_node(state: M2State) -> Dict[str, Any]:
     """
     Generates a formal RFQ draft and saves it to the DB as status='draft'.
-    Also writes thread_id so the approve endpoint can resume the graph.
+    Also writes thread_id so the approve endpoint can resume the graph,
+    and picks a matching vendor to store email for the n8n webhook.
     """
     current_product = state.get("current_product", {})
     language = state.get("user_context", {}).get("language", "ar-EG")
@@ -72,6 +108,10 @@ async def rfq_builder_node(state: M2State) -> Dict[str, Any]:
         thread_id = state.get("thread_id") or f"m2-rfq-{rfq_id}"
 
         async with get_db_session() as session:
+            vendor_id, vendor_name, vendor_email = await _pick_vendor(
+                session, current_product.get("category", "")
+            )
+
             new_rfq = RFQ(
                 id=uuid.UUID(rfq_id),
                 product_id=uuid.UUID(current_product["product_id"]),
@@ -80,6 +120,9 @@ async def rfq_builder_node(state: M2State) -> Dict[str, Any]:
                 draft_text=rfq_text,
                 status="draft",
                 thread_id=thread_id,
+                vendor_ids=[uuid.UUID(vendor_id)] if vendor_id else None,
+                vendor_email=vendor_email,
+                vendor_name=vendor_name,
             )
             session.add(new_rfq)
             await session.commit()
@@ -88,6 +131,8 @@ async def rfq_builder_node(state: M2State) -> Dict[str, Any]:
             "rfq_draft": rfq_text,
             "rfq_id": rfq_id,
             "thread_id": thread_id,
+            "vendor_email": vendor_email or "",
+            "vendor_name": vendor_name or "",
         }
 
     except Exception as exc:
