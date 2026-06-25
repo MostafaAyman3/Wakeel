@@ -132,27 +132,9 @@ def test_m2_graph_imports_without_error():
     assert callable(build_m2_app_with_checkpointer)
 
 
-def _get_node_names(app) -> set:
-    """Extract node names from a compiled LangGraph (works across LangGraph versions)."""
-    # Try various internal attributes across different LangGraph versions
-    for attr in ("graph", "builder", "_graph"):
-        sub = getattr(app, attr, None)
-        if sub is None:
-            continue
-        for node_attr in ("nodes", "_nodes"):
-            nodes_obj = getattr(sub, node_attr, None)
-            if nodes_obj is not None:
-                return set(nodes_obj.keys())
-    # Fallback: use get_graph() which is stable across versions
-    try:
-        return set(app.get_graph().nodes.keys())
-    except Exception:
-        return set()
-
-
 def test_m2_graph_has_procurement_nodes():
     from agents.m2.graphs.m2_graph import m2_app
-    nodes = _get_node_names(m2_app)
+    nodes = set(m2_app.get_graph().nodes.keys())
     for expected in (
         "alert_generator_node",
         "rfq_builder_node",
@@ -167,22 +149,19 @@ def test_m2_graph_has_procurement_nodes():
 
 def test_m2_graph_has_pricing_node():
     from agents.m2.graphs.m2_graph import m2_app
-    nodes = _get_node_names(m2_app)
+    nodes = set(m2_app.get_graph().nodes.keys())
     assert "pricing_advisor_node" in nodes, f"pricing_advisor_node missing. Found: {nodes}"
 
 
 def test_m2_graph_interrupt_before_approval_nodes():
-    from agents.m2.graphs.m2_graph import _workflow
-    # Check the workflow builder's interrupt_before list directly
-    # This is set at compile time via m2_app = _workflow.compile(interrupt_before=[...])
-    expected = {"human_approval_node", "final_approval_node"}
-    # Verify by re-compiling and checking the config
-    from langgraph.checkpoint.memory import MemorySaver
-    test_app = _workflow.compile(
-        checkpointer=MemorySaver(),
-        interrupt_before=["human_approval_node", "final_approval_node"],
+    from agents.m2.graphs.m2_graph import m2_app
+    interrupt_nodes = set(m2_app.interrupt_before_nodes)
+    assert "human_approval_node" in interrupt_nodes, (
+        f"human_approval_node not in interrupt_before_nodes: {interrupt_nodes}"
     )
-    assert test_app is not None
+    assert "final_approval_node" in interrupt_nodes, (
+        f"final_approval_node not in interrupt_before_nodes: {interrupt_nodes}"
+    )
 
 
 def test_build_m2_app_with_checkpointer_returns_compiled_graph():
