@@ -23,7 +23,8 @@ router = APIRouter(prefix="/m2", tags=["M2 Voice"])
 async def process_voice_command(
     request: Request,
     audio: UploadFile = File(...),
-    language: str = Form("ar-EG")
+    language: str = Form("ar-EG"),
+    history: str = Form("[]"),
 ) -> Response:
     """
     1. STT: audio -> text

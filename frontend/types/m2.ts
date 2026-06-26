@@ -52,3 +52,33 @@ export interface AnalyzeResponse {
   pricing_recs: PricingRecData[];
   language: string;
 }
+
+export interface OfferItem {
+  id?: string;
+  vendor_name: string;
+  price_per_unit: number;
+  lead_time_days?: number | null;
+  payment_terms?: string | null;
+  notes?: string | null;
+  score?: number;
+  justification?: string;
+}
+
+export interface RecommendedOffer {
+  vendor_name: string;
+  price_per_unit: number;
+  lead_time_days?: number | null;
+  score: number;
+  justification: string;
+}
+
+export interface RFQListItem {
+  id: string;
+  product_id: string;
+  quantity: number;
+  unit: string;
+  status: 'draft' | 'pending' | 'sent' | 'rejected' | 'cancelled';
+  thread_id?: string | null;
+  draft_preview?: string;
+  created_at: string;
+}
