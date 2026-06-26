@@ -5,6 +5,7 @@ import { InventoryTable } from '@/components/m2/InventoryTable';
 import { AlertsPanel } from '@/components/m2/AlertsPanel';
 import { RFQDraftView } from '@/components/m2/RFQDraftView';
 import { PricingRecommendationsPanel } from '@/components/m2/PricingRecommendationsPanel';
+import VoiceAssistantPanel from '@/components/m2/VoiceAssistantPanel';
 import { InventoryStatusResponse, AnalyzeResponse } from '@/types/m2';
 
 export default function M2Dashboard() {
@@ -106,6 +107,9 @@ export default function M2Dashboard() {
             </div>
           </div>
         )}
+
+        {/* Voice Assistant Panel */}
+        <VoiceAssistantPanel />
 
         {/* Dashboard Content */}
         {loadingInventory && !inventoryData ? (

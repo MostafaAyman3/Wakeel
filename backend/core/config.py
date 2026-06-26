@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
     vector_embedding_dimension: int = 1536
 
+    # ElevenLabs
+    elevenlabs_api_key: str = ""
+
     # LangChain / LangSmith
     langchain_tracing_v2: bool = True
     langchain_api_key: str = ""
