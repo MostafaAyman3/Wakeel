@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>M2 — Architecture Diagram</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d0d0d;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+      border-bottom: 1px solid #2d3748;
+      padding-bottom: 20px;
+    }
+    header h1 { font-size: 1.5rem; color: #f97316; font-weight: 700; }
+    header p  { font-size: 0.85rem; color: #718096; margin-top: 4px; }
+    .badge {
+      padding: 3px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 600;
+    }
+    .badge-orange { background: #7c2d12; color: #fed7aa; }
+    .badge-blue   { background: #1e3a5f; color: #93c5fd; }
+    .badge-green  { background: #14532d; color: #86efac; }
+    .badge-purple { background: #3b0764; color: #d8b4fe; }
+
+    .legend {
+      display: flex; gap: 24px; flex-wrap: wrap;
+      margin-bottom: 20px; padding: 14px 18px;
+      background: #1a1a2e; border: 1px solid #2d3748; border-radius: 10px;
+      font-size: 0.78rem;
+    }
+    .legend-item { display: flex; align-items: center; gap: 8px; }
+    .dot { width: 12px; height: 12px; border-radius: 3px; }
+
+    .diagram-wrapper {
+      background: #111827;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 24px;
+      overflow-x: auto;
+    }
+
+    /* Mermaid overrides for dark theme */
+    .mermaid svg { background: transparent !important; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>M2 — Purchasing &amp; Inventory Agent</h1>
+    <p>LangGraph · FastAPI · Next.js · Supabase · n8n · ElevenLabs</p>
+  </div>
+  <span class="badge badge-orange">Phase 3 Complete</span>
+  <span class="badge badge-blue">Sprint 0–9</span>
+  <span class="badge badge-green">130 Tests ✓</span>
+</header>
+
+<div class="legend">
+  <div class="legend-item"><div class="dot" style="background:#f97316"></div> Trigger / UI</div>
+  <div class="legend-item"><div class="dot" style="background:#3b82f6"></div> FastAPI Endpoint</div>
+  <div class="legend-item"><div class="dot" style="background:#a855f7"></div> LangGraph Node (no LLM)</div>
+  <div class="legend-item"><div class="dot" style="background:#ec4899"></div> LangGraph Node (GPT-4o-mini)</div>
+  <div class="legend-item"><div class="dot" style="background:#ef4444"></div> LangGraph Node (GPT-4o)</div>
+  <div class="legend-item"><div class="dot" style="background:#eab308"></div> Human Interrupt ⏸</div>
+  <div class="legend-item"><div class="dot" style="background:#22c55e"></div> Data Layer</div>
+  <div class="legend-item"><div class="dot" style="background:#06b6d4"></div> External Service</div>
+</div>
+
+<div class="diagram-wrapper">
+<div class="mermaid">
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#1e293b',
+    'primaryTextColor': '#e2e8f0',
+    'primaryBorderColor': '#475569',
+    'lineColor': '#64748b',
+    'secondaryColor': '#0f172a',
+    'tertiaryColor': '#1e293b',
+    'background': '#0d0d0d',
+    'nodeBorder': '#475569',
+    'clusterBkg': '#111827',
+    'titleColor': '#f1f5f9',
+    'edgeLabelBackground': '#1e293b',
+    'fontFamily': 'Segoe UI, system-ui'
+  }
+}}%%
+
+flowchart TD
+
+  %% ═══════════════════════════════════════
+  %% TRIGGERS
+  %% ═══════════════════════════════════════
+  subgraph TRIGGERS["⚡ Triggers"]
+    direction LR
+    CRON["🕐 n8n Cron\nWorkflow 1\nيومي — 8 صباحاً"]
+    DASHBOARD["🖥️ Dashboard\nافحص الآن"]
+    VOICE_IN["🎙️ Voice Input\nVoiceAssistantPanel"]
+  end
+
+  %% ═══════════════════════════════════════
+  %% BACKEND — FastAPI
+  %% ═══════════════════════════════════════
+  subgraph BACKEND["🚀 Backend — FastAPI"]
+    direction LR
+    EP_ANALYZE["POST /m2/analyze\ntrigger_source: cron|manual|voice"]
+    EP_INVENTORY["GET /m2/inventory\nحالة المخزون الكاملة"]
+    EP_APPROVE["POST /m2/rfqs/{id}/approve\nاعتماد أو رفض"]
+    EP_OFFERS["POST /m2/offers\nاستقبال عروض الموردين"]
+    EP_PRICING["GET /m2/pricing\nتوصيات التسعير"]
+    EP_VOICE["POST /m2/voice\nSTT → Analyze → TTS"]
+  end
+
+  %% ═══════════════════════════════════════
+  %% AGENT — LangGraph
+  %% ═══════════════════════════════════════
+  subgraph AGENT["🧠 Agent Layer — LangGraph"]
+    direction TB
+
+    ICN["🔍 InventoryCheckNode\n❌ بدون LLM\nSQL + كشف ذكي\nlow_stock · shortage · slow · expiry"]
+
+    ROUTE{{"route_detection\n◆ Router"}}
+
+    subgraph PROCUREMENT["📦 مسار الشراء — Procurement Path"]
+      direction TB
+      AGN["⚡ AlertGeneratorNode\n🤖 GPT-4o-mini\nتوصيات استباقية بالعامية/EN"]
+      RFQB["📝 RFQBuilderNode\n🤖 GPT-4o\nمسودة إيميل رسمي للمورد\nيختار مورد من vendors table"]
+      HAN["⏸ HumanApprovalNode\n🔴 interrupt_before\nالمدير يعتمد أو يرفض"]
+      RSN["📤 RFQSendNode\nيحدّث status=sent\nيطلق n8n webhook"]
+      AWN["⏳ AwaitOffersNode\n🔴 interrupt inside\nينتظر ردود الموردين"]
+      OAN["📊 OfferAnalysisNode\n🤖 GPT-4o\nمقارنة عروض + توصية\nسعر 50% · مدة 30% · شروط 20%"]
+      FAN["✅ FinalApprovalNode\n🔴 interrupt_before\nاعتماد نهائي للمورد"]
+    end
+
+    subgraph PRICING_PATH["💰 مسار التسعير — Pricing Path"]
+      direction TB
+      PAN["🏷️ PricingAdvisorNode\n🤖 GPT-4o\nتوصية خفض سعر\nslow_moving · near_expiry"]
+    end
+
+    ICN --> ROUTE
+    ROUTE -->|"low_stock\npredicted_shortage"| AGN
+    ROUTE -->|"slow_moving\nnear_expiry"| PAN
+
+    AGN --> RFQB
+    RFQB --> HAN
+    HAN -->|"✅ approved"| RSN
+    HAN -->|"❌ rejected"| END_REJ(("END"))
+    RSN --> AWN
+    AWN -->|"عروض وصلت"| OAN
+    OAN --> FAN
+    FAN --> END_FINAL(("END"))
+    PAN --> END_PRICE(("END"))
+  end
+
+  %% ═══════════════════════════════════════
+  %% EXTERNAL
+  %% ═══════════════════════════════════════
+  subgraph EXTERNAL["🌐 External Services"]
+    direction TB
+    N8N_EMAIL["📧 n8n Workflow 2\nEmail Node\nإرسال RFQ للمورد الحقيقي"]
+    OPENAI_SVC["🤖 OpenAI\nWhisper STT\nGPT-4o / GPT-4o-mini"]
+    ELEVEN_SVC["🔊 ElevenLabs\nText-to-Speech\nعامية مصرية / EN"]
+  end
+
+  %% ═══════════════════════════════════════
+  %% DATA LAYER
+  %% ═══════════════════════════════════════
+  subgraph DATA["🗄️ Data Layer — Supabase PostgreSQL"]
+    direction LR
+    TBL_PROD[("products\nreorder_point\nlead_time_days\nexpiry_date")]
+    TBL_VENDORS[("vendors\ncontact_email\ncategory")]
+    TBL_ALERTS[("inventory_alerts\nalert_type enum\nopen→resolved")]
+    TBL_RFQS[("rfqs\nthread_id · status\nvendor_email\nvendor_name")]
+    TBL_OFFERS[("supplier_offers\nprice · lead_time\npayment_terms")]
+    TBL_PRICING[("pricing_recommendations\nrecommendation_text")]
+    TBL_CHKPT[("checkpoint_storage\nAsyncPostgresSaver\nLangGraph state")]
+  end
+
+  %% ═══════════════════════════════════════
+  %% CONNECTIONS
+  %% ═══════════════════════════════════════
+
+  %% Triggers → Backend
+  CRON        -->|"POST /m2/analyze\ntrigger=cron"| EP_ANALYZE
+  DASHBOARD   --> EP_ANALYZE
+  DASHBOARD   --> EP_INVENTORY
+  VOICE_IN    --> EP_VOICE
+
+  %% Backend → Agent
+  EP_ANALYZE  --> ICN
+  EP_APPROVE  -->|"اعتماد → resume graph"| HAN
+  EP_OFFERS   -->|"عروض → resume graph"| AWN
+
+  %% Backend → External
+  EP_VOICE    --> OPENAI_SVC
+  EP_VOICE    --> ELEVEN_SVC
+
+  %% Backend → DB (read)
+  EP_INVENTORY --> TBL_PROD
+  EP_PRICING   --> TBL_PRICING
+
+  %% Agent → External
+  RSN         -->|"webhook POST"| N8N_EMAIL
+  AGN         --> OPENAI_SVC
+  RFQB        --> OPENAI_SVC
+  OAN         --> OPENAI_SVC
+  PAN         --> OPENAI_SVC
+
+  %% Agent → DB (write)
+  ICN         --> TBL_ALERTS
+  RFQB        --> TBL_RFQS
+  RFQB        --> TBL_VENDORS
+  RSN         --> TBL_RFQS
+  OAN         --> TBL_OFFERS
+  PAN         --> TBL_PRICING
+  HAN         --> TBL_CHKPT
+  AWN         --> TBL_CHKPT
+  FAN         --> TBL_CHKPT
+
+  %% DB → Agent (read)
+  TBL_PROD    -->|"قراءة مخزون"| ICN
+  TBL_VENDORS -->|"اختيار مورد"| RFQB
+
+  %% ═══════════════════════════════════════
+  %% STYLES
+  %% ═══════════════════════════════════════
+  style TRIGGERS   fill:#1a1a2e,stroke:#f97316,color:#fed7aa
+  style BACKEND    fill:#0f172a,stroke:#3b82f6,color:#93c5fd
+  style AGENT      fill:#0a0a1a,stroke:#6d28d9,color:#ddd6fe
+  style PROCUREMENT fill:#1a0a2e,stroke:#a855f7,color:#e9d5ff
+  style PRICING_PATH fill:#1a1000,stroke:#eab308,color:#fef9c3
+  style EXTERNAL   fill:#0a1a1a,stroke:#06b6d4,color:#a5f3fc
+  style DATA       fill:#0a1a0a,stroke:#22c55e,color:#bbf7d0
+
+  style ICN   fill:#3b0764,stroke:#a855f7,color:#e9d5ff
+  style ROUTE fill:#1e293b,stroke:#f59e0b,color:#fde68a
+  style AGN   fill:#500724,stroke:#ec4899,color:#fbcfe8
+  style RFQB  fill:#450a0a,stroke:#ef4444,color:#fca5a5
+  style HAN   fill:#422006,stroke:#eab308,color:#fef08a
+  style RSN   fill:#0c1a2e,stroke:#3b82f6,color:#93c5fd
+  style AWN   fill:#422006,stroke:#eab308,color:#fef08a
+  style OAN   fill:#450a0a,stroke:#ef4444,color:#fca5a5
+  style FAN   fill:#422006,stroke:#eab308,color:#fef08a
+  style PAN   fill:#450a0a,stroke:#ef4444,color:#fca5a5
+
+  style N8N_EMAIL  fill:#0a2a1a,stroke:#06b6d4,color:#a5f3fc
+  style OPENAI_SVC fill:#0a1a2a,stroke:#06b6d4,color:#a5f3fc
+  style ELEVEN_SVC fill:#0a1a2a,stroke:#06b6d4,color:#a5f3fc
+
+  style TBL_PROD    fill:#0a2a0a,stroke:#22c55e,color:#bbf7d0
+  style TBL_VENDORS fill:#0a2a0a,stroke:#22c55e,color:#bbf7d0
+  style TBL_ALERTS  fill:#0a2a0a,stroke:#22c55e,color:#bbf7d0
+  style TBL_RFQS    fill:#0a2a0a,stroke:#22c55e,color:#bbf7d0
+  style TBL_OFFERS  fill:#0a2a0a,stroke:#22c55e,color:#bbf7d0
+  style TBL_PRICING fill:#0a2a0a,stroke:#22c55e,color:#bbf7d0
+  style TBL_CHKPT   fill:#0a2a0a,stroke:#22c55e,color:#bbf7d0
+
+  style END_REJ   fill:#450a0a,stroke:#ef4444,color:#fca5a5
+  style END_FINAL fill:#0a2a0a,stroke:#22c55e,color:#bbf7d0
+  style END_PRICE fill:#0a2a0a,stroke:#22c55e,color:#bbf7d0
+</div>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    securityLevel: 'loose',
+    flowchart: {
+      useMaxWidth: false,
+      htmlLabels: true,
+      curve: 'basis',
+      rankSpacing: 60,
+      nodeSpacing: 40
+    }
+  });
+</script>
+
+</body>
+</html>

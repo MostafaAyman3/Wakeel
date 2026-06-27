@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
     vector_embedding_dimension: int = 1536
 
+    # ElevenLabs
+    elevenlabs_api_key: str = ""
+
     # LangChain / LangSmith
     langchain_tracing_v2: bool = True
     langchain_api_key: str = ""
@@ -78,6 +81,9 @@ class Settings(BaseSettings):
     m1_max_db_executions: int = 4
     m1_query_timeout_ms: int = 30000
     m1_query_hard_limit: int = 500
+
+    # M2 n8n webhooks
+    n8n_rfq_webhook_url: str = ""
 
     # M3 thresholds
     m3_repeat_issue_threshold: int = 2

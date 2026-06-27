@@ -71,7 +71,7 @@ ReadonlyAsyncSessionFactory = async_sessionmaker(
 
 @asynccontextmanager
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Read-write session context manager for backend services."""
+    """Read-write session context manager — use with `async with get_db_session() as session`."""
     async with AsyncSessionFactory() as session:
         try:
             yield session
@@ -84,5 +84,33 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 @asynccontextmanager
 async def get_readonly_session() -> AsyncGenerator[AsyncSession, None]:
     """Read-only session context manager — M1 agent MUST use this exclusively."""
+    async with ReadonlyAsyncSessionFactory() as session:
+        yield session
+
+
+async def get_db_session_dep() -> AsyncGenerator[AsyncSession, None]:
+    """
+    FastAPI Depends()-compatible read-write session.
+
+    Use ONLY in FastAPI endpoint signatures:
+        async def my_endpoint(session: AsyncSession = Depends(get_db_session_dep))
+
+    For all other code (agent nodes, services, scripts) use the context manager:
+        async with get_db_session() as session: ...
+
+    The @asynccontextmanager version above cannot be used with Depends() because
+    Depends() needs a plain async generator, not a context manager object.
+    """
+    async with AsyncSessionFactory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+async def get_readonly_session_dep() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI Depends()-compatible read-only session (M1 agent endpoints)."""
     async with ReadonlyAsyncSessionFactory() as session:
         yield session

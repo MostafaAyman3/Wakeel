@@ -22,6 +22,12 @@ from backend.core.database import engine, readonly_engine
 from backend.core.logging import configure_logging, get_logger
 from backend.middleware.error_handler import error_handler_middleware
 from backend.api.v1.m1_query import router as m1_router
+from backend.api.v1.m2_inventory import router as m2_inventory_router
+from backend.api.v1.m2_analyze import router as m2_analyze_router
+from backend.api.v1.m2_rfqs import router as m2_rfqs_router
+from backend.api.v1.m2_offers import router as m2_offers_router
+from backend.api.v1.m2_pricing import router as m2_pricing_router
+from backend.api.v1.m2_voice import router as m2_voice_router
 from backend.api.v1.m3_support import router as m3_router
 
 settings = get_settings()
@@ -57,8 +63,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             api_key_set=ls_key_set,
         )
 
+    # ── Setup M2 LangGraph with PostgreSQL checkpointer ──────────
+    try:
+        from agents.m2.checkpointer import get_m2_checkpointer, close_m2_checkpointer
+        from agents.m2.graphs.m2_graph import build_m2_app_with_checkpointer
+
+        checkpointer = await get_m2_checkpointer()
+        app.state.m2_graph = build_m2_app_with_checkpointer(checkpointer)
+        logger.info("m2_graph_with_checkpointer_ready")
+    except Exception as exc:
+        logger.warning("m2_graph_checkpointer_unavailable", extra={"error": str(exc)})
+        app.state.m2_graph = None  # analyze endpoint falls back to MemorySaver
+
     yield
-    # Gracefully close all DB pool connections on shutdown
+
+    # ── Graceful shutdown ─────────────────────────────────────────
+    try:
+        from agents.m2.checkpointer import close_m2_checkpointer
+        await close_m2_checkpointer()
+    except Exception:
+        pass
     await engine.dispose()
     await readonly_engine.dispose()
     logger.info("application_shutdown_complete")
@@ -87,6 +111,12 @@ app.add_middleware(
 
 # API routers
 app.include_router(m1_router, prefix="/api/v1")
+app.include_router(m2_inventory_router, prefix="/api/v1")
+app.include_router(m2_analyze_router, prefix="/api/v1")
+app.include_router(m2_rfqs_router, prefix="/api/v1")
+app.include_router(m2_offers_router, prefix="/api/v1")
+app.include_router(m2_pricing_router, prefix="/api/v1")
+app.include_router(m2_voice_router, prefix="/api/v1")
 app.include_router(m3_router, prefix="/api/v1")
 
 

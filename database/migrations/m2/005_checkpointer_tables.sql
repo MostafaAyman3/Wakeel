@@ -1,0 +1,57 @@
+-- Migration 005 — LangGraph Checkpoint Tables
+-- =============================================
+-- These tables are created AUTOMATICALLY by AsyncPostgresSaver.setup()
+-- when the application starts.  This file exists for documentation and
+-- to allow manual creation if needed.
+--
+-- Run the app once with the checkpointer enabled and setup() handles it.
+-- If you want to create manually, run:
+--   python -c "import asyncio; from agents.m2.checkpointer import get_m2_checkpointer; asyncio.run(get_m2_checkpointer())"
+--
+-- Tables created by langgraph-checkpoint-postgres:
+--
+--   checkpoints
+--     thread_id    TEXT  NOT NULL
+--     checkpoint_ns TEXT NOT NULL  DEFAULT ''
+--     checkpoint_id TEXT  NOT NULL
+--     parent_checkpoint_id TEXT
+--     type         TEXT
+--     checkpoint   JSONB NOT NULL
+--     metadata     JSONB NOT NULL  DEFAULT '{}'
+--     PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id)
+--
+--   checkpoint_blobs
+--     thread_id    TEXT  NOT NULL
+--     checkpoint_ns TEXT NOT NULL  DEFAULT ''
+--     channel      TEXT  NOT NULL
+--     version      TEXT  NOT NULL
+--     type         TEXT  NOT NULL
+--     blob         BYTEA
+--     PRIMARY KEY (thread_id, checkpoint_ns, channel, version)
+--
+--   checkpoint_writes
+--     thread_id    TEXT  NOT NULL
+--     checkpoint_ns TEXT NOT NULL  DEFAULT ''
+--     checkpoint_id TEXT  NOT NULL
+--     task_id      TEXT  NOT NULL
+--     idx          INTEGER NOT NULL
+--     channel      TEXT  NOT NULL
+--     type         TEXT
+--     blob         BYTEA NOT NULL
+--     PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id, task_id, idx)
+--
+-- Thread ID format used by M2:
+--   "m2-{product_id[:8]}-{unix_timestamp}"
+-- Example:
+--   "m2-226607ff-1750600000"
+--
+-- To query a specific RFQ's checkpoint:
+--   SELECT * FROM checkpoints WHERE thread_id = 'm2-226607ff-1750600000';
+--
+-- To clean up old checkpoints (e.g. after 30 days):
+--   DELETE FROM checkpoints
+--    WHERE thread_id LIKE 'm2-%'
+--      AND (metadata->>'created_at')::timestamptz < now() - interval '30 days';
+
+-- No SQL to execute — setup() handles table creation.
+SELECT 1 AS migration_005_acknowledged;
