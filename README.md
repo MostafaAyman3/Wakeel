@@ -76,9 +76,9 @@ graph TD
 
     %% Backend API Layer
     subgraph Backend [Backend - FastAPI]
-        API_M1[/api/v1/m1_query]
-        API_M2[/api/v1/m2/*]
-        API_M3[/api/v1/m3/*]
+        API_M1["/api/v1/m1_query"]
+        API_M2["/api/v1/m2/*"]
+        API_M3["/api/v1/m3/*"]
     end
 
     %% Agentic Layer
