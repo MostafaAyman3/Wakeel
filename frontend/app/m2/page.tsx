@@ -7,6 +7,7 @@ import { RFQDraftView } from '@/components/m2/RFQDraftView';
 import { PricingRecommendationsPanel } from '@/components/m2/PricingRecommendationsPanel';
 import VoiceAssistantPanel from '@/components/m2/VoiceAssistantPanel';
 import { InventoryStatusResponse, AnalyzeResponse } from '@/types/m2';
+import Header from '@/components/layout/Header';
 
 export default function M2Dashboard() {
   const [inventoryData, setInventoryData] = useState<InventoryStatusResponse | null>(null);
@@ -14,6 +15,12 @@ export default function M2Dashboard() {
   const [loadingInventory, setLoadingInventory] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [language, setLanguage] = useState<"ar" | "en">("ar");
+
+  const toggleLanguage = () => {
+    const next = language === "ar" ? "en" : "ar";
+    setLanguage(next);
+  };
 
   const fetchInventory = async () => {
     setLoadingInventory(true);
@@ -64,8 +71,9 @@ export default function M2Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-black py-8 px-4 sm:px-6 lg:px-8" dir="rtl">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-midnight" dir={language === "ar" ? "rtl" : "ltr"}>
+      <Header language={language} onToggleLanguage={toggleLanguage} />
+      <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8">
 
         {/* Header */}
         <div className="md:flex md:items-center md:justify-between bg-gray-900 p-6 rounded-lg shadow-sm border border-gray-800">
