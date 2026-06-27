@@ -25,6 +25,7 @@ from __future__ import annotations
 import structlog
 
 from agents.m1.schemas.m1_state import M1State
+from agents.m1.schemas.analysis_models import VisualizationHints
 
 logger = structlog.get_logger(__name__)
 
@@ -85,6 +86,7 @@ def _build_chart_config(
     columns: list[str],
     raw_data: list[dict],
     language: str,
+    hints: VisualizationHints | None = None,
 ) -> dict | None:
     """
     Build a framework-agnostic chart configuration.
@@ -101,13 +103,41 @@ def _build_chart_config(
     x_field = columns[0]
     y_field = columns[1]
 
-    # If there are more than 2 columns, try to find a numeric value column
-    if len(columns) > 2:
-        for col in columns[1:]:
-            sample_val = raw_data[0].get(col) if raw_data else None
-            if isinstance(sample_val, (int, float)):
-                y_field = col
-                break
+    # Priority 1: Validated Agentic Override
+    if hints:
+        if hints.x_axis and hints.x_axis in columns:
+            x_field = hints.x_axis
+        if hints.y_axis and hints.y_axis in columns:
+            y_field = hints.y_axis
+
+    # Priority 2: Smart Heuristics Fallback (only if not overridden)
+    if not hints or not hints.x_axis or hints.x_axis not in columns:
+        if output_format == "line_chart":
+            time_cols = [c for c in columns if c.lower() in _TIME_COLUMN_PATTERNS or c.lower().endswith(("_date", "_at"))]
+            if time_cols:
+                x_field = time_cols[0]
+        elif output_format == "bar_chart":
+            # Exclude UUIDs
+            valid_cats = [c for c in columns if c.lower() not in ("id", "uuid") and not c.lower().endswith("_id")]
+            if valid_cats:
+                # Find first string column
+                str_cols = []
+                if raw_data:
+                    str_cols = [c for c in valid_cats if isinstance(raw_data[0].get(c), str)]
+                x_field = str_cols[0] if str_cols else valid_cats[0]
+
+    # For y_field fallback, if not overridden, pick first numeric column after x_field
+    if not hints or not hints.y_axis or hints.y_axis not in columns:
+        if len(columns) > 2:
+            for col in columns:
+                if col == x_field:
+                    continue
+                sample_val = raw_data[0].get(col) if raw_data else None
+                if isinstance(sample_val, (int, float)):
+                    y_field = col
+                    break
+        elif len(columns) == 2:
+            y_field = columns[1] if columns[0] == x_field else columns[0]
 
     chart_type = "line" if output_format == "line_chart" else "bar"
 
@@ -153,6 +183,10 @@ async def select_output(state: M1State) -> dict:
     Returns:
         Partial M1State dict: { output_format, chart_config }
     """
+    hints = state.get("visualization_hints")
+    if isinstance(hints, dict):
+        hints = VisualizationHints(**hints)
+
     # ── Guard Clause: preserve upstream output_format ──────────────────────
     existing_format = state.get("output_format")
     if existing_format:
@@ -164,7 +198,7 @@ async def select_output(state: M1State) -> dict:
         raw_data = state.get("raw_data", [])
         columns = list(raw_data[0].keys()) if raw_data else []
         language = state.get("language", "en")
-        chart_config = _build_chart_config(existing_format, columns, raw_data, language)
+        chart_config = _build_chart_config(existing_format, columns, raw_data, language, hints)
         return {
             "output_format": existing_format,
             "chart_config": chart_config,
@@ -192,7 +226,9 @@ async def select_output(state: M1State) -> dict:
 
     # Determine the best data visualization format regardless of anomaly
     data_format = ""
-    if hint and hint != "alert":
+    if hints and hints.chart_type:
+        data_format = hints.chart_type
+    elif hint and hint != "alert":
         data_format = hint
     elif evaluator_hint:
         data_format = evaluator_hint
@@ -231,7 +267,7 @@ async def select_output(state: M1State) -> dict:
     # ── Build chart_config for chart types ─────────────────────────────────
     # When format is alert, build chart_config for the secondary data format
     chart_format = data_format if selected == "alert" else selected
-    chart_config = _build_chart_config(chart_format, columns, raw_data, language)
+    chart_config = _build_chart_config(chart_format, columns, raw_data, language, hints)
 
     logger.info(
         "output_selector: format selected",

@@ -648,19 +648,206 @@ The following are NOT architecture tasks — they are implementation tasks for t
 5. **M2 is deferred** — All M2 files are in agents/archive/m2/. Do not implement.
 6. **No Odoo, No OCR** — Both archived. All data comes from PostgreSQL directly.
 
+Time: 2026-06-18
+Action: Implemented M1-Sprint 5 — Adaptive Output Selector + Narrative Generator + Proactive Anomaly Detection
+Reason: Sprint 5 deliverable — "كل رد بالشكل الصح تلقائياً + anomaly detection فعّال"
+Files created:
+- agents/m1/nodes/output_selector_node.py — OutputSelectorNode with:
+  - Guard clause: preserves upstream output_format (tax_rag_node, invoice_analysis_tool)
+  - Explicit is_categorical(): 2 columns + no time column + first column is string
+  - 8 output types: direct_text, metric_card, formatted_text_list, table, bar_chart, line_chart, narrative, alert
+  - Template-specific hints: T2→line_chart, T3→metric_card, T6→alert, T8→bar_chart
+  - chart_config builder: framework-agnostic config for Sprint 6 frontend
+- agents/m1/nodes/narrative_generator_node.py — NarrativeGeneratorNode with:
+  - Skip condition: upstream narrative exists for tax_reasoning/invoice_analysis → no LLM re-call
+  - GPT-4o generation for db_query_tool results (Sprint 2 had no narrative)
+  - Alert-specific narrative generation
+  - Unified final_response assembly: { format, data, chart_config, narrative, alert, disclaimer }
+- agents/prompts/narrative_generator.py — Bilingual prompts optimized per output_format (8 format-specific instruction blocks + alert prompt)
+- scripts/test_sprint5.py — 10 unit/integration test cases
+Files modified:
+- agents/m1/schemas/m1_state.py — Added formatted_text_list to OutputType (8th type) + anomaly_detected, anomaly_details, chart_config fields
+- agents/m1/nodes/validation_enrichment_node.py — Full upgrade from Sprint 1 lightweight to Sprint 5:
+  - T6 expense anomaly detection (severity: critical if >200%, warning otherwise)
+  - Invoice pattern anomaly passthrough from upstream
+  - Generic anomaly scan: numeric column values > 2x average
+  - Confidence-based routing: data_confidence < 0.70 → clarification
+- agents/m1/graphs/m1_graph.py — Rewired: validation_enrichment → output_selector → narrative_generator → END
+  - 9 nodes total (including __start__): intent_classifier, clarification, db_query_tool, invoice_analysis_tool, tax_rag_node, validation_enrichment, output_selector, narrative_generator
+- scripts/test_e2e_all_sprints.py — Added Sprint 5 checks: output_format, final_response.format, chart_config, alert verification
+Key design decisions:
+- Guard clause FIRST in select_output() — upstream format is never overridden
+- is_categorical explicitly defined: exactly 2 columns + no time column + first column values are strings
+- Anomaly detection is pure Python thresholds — no additional LLM call
+- chart_config is framework-agnostic — Sprint 6 converts to ECharts options
+- Narrative skip condition prevents double LLM calls for tax_rag and invoice_analysis
+Verification:
+- Graph compiles successfully (9 nodes) ✅
+- Sprint 5 tests: 10/10 PASSED ✅
+- E2E regression (Sprints 1-5): 10/10 PASSED ✅
+  - Clarification: correctly routed ✅
+  - Financial queries: output_format selected (metric_card/table/line_chart) ✅
+  - Invoice analysis: upstream narrative preserved, skip condition works ✅
+  - Tax RAG: guard clause preserves "narrative" format, skip condition works ✅
+  - All final_response objects have "format" field populated ✅
+Result: SUCCESS — M1 Sprint 5 COMPLETE
+
+---
+
+## Step 26
+
+Time: 2026-06-19
+Action: Implemented M1-Sprint 6 — Frontend Chat UI + Integration
+Reason: Sprint 6 deliverable — "M1 شغال end-to-end، الـ 5 scenarios تعمل، جاهز للعرض"
+Backend fix:
+- backend/api/v1/m1_query.py — removed `output_format` from `initial_state` (was blocking Sprint 5 guard clause)
+- Verified CORSMiddleware present in backend/main.py
+Frontend files created/modified (26 files):
+- frontend/package.json — replaced recharts with echarts + echarts-for-react + jose
+- frontend/next.config.mjs — API proxy rewrite + standalone output
+- frontend/.env.local — API base URL
+- frontend/postcss.config.js — Tailwind CSS processing
+- frontend/tailwind.config.ts — design tokens (midnight/surface/gold colors, Cairo/Inter/JetBrains fonts, pulse-gold/fade-in/slide-up animations)
+- frontend/tsconfig.json — @/ path alias + next plugin
+- frontend/app/globals.css — fonts + dark theme + RTL support + card-gold-border signature + chat bubbles
+- frontend/app/layout.tsx — root layout (lang=ar, dir=rtl, dark theme, SEO metadata)
+- frontend/app/page.tsx — redirect to /m1
+- frontend/app/m1/page.tsx — M1 chat page
+- frontend/types/m1.ts — OutputFormat, ChartConfig, AlertPayload, QueryResponse, ChatMessage
+- frontend/lib/auth.ts — demo JWT generator (jose, HS256, 8h expiry)
+- frontend/lib/api.ts — queryM1() with Bearer auth + error handling
+- frontend/lib/rtl.ts — getDirection, isArabic, formatNumber, formatCurrency
+- frontend/hooks/useM1Query.ts — useM1Chat hook (messages, isLoading, language, sendMessage)
+- frontend/components/layout/Header.tsx — logo (وكيل/Wakeel) + language toggle
+- frontend/components/chat/ChatInterface.tsx — main container (Header + MessageList + ChatInput)
+- frontend/components/chat/ChatInput.tsx — auto-growing textarea + RTL detection + Enter-to-send
+- frontend/components/chat/MessageBubble.tsx — user/agent bubbles with OutputRenderer
+- frontend/components/chat/MessageList.tsx — welcome screen + 5 suggested queries + auto-scroll + thinking indicator
+- frontend/components/chat/LanguageToggle.tsx — AR/EN pill toggle
+- frontend/components/m1/OutputRenderer.tsx — smart format router (8 types → correct component)
+- frontend/components/m1/MetricCard.tsx — large gold numbers + multi-metric grid
+- frontend/components/m1/SortableTable.tsx — sortable columns + alternating rows + show-more
+- frontend/components/m1/LineChart.tsx — ECharts line with gold gradient area fill
+- frontend/components/m1/BarChart.tsx — ECharts horizontal bars with gold gradient
+- frontend/components/m1/AlertCard.tsx — critical (red pulse) + warning (amber) variants
+- frontend/components/m1/NarrativeText.tsx — paragraph splitting + disclaimer footnote
+Key design decisions:
+- Dark theme (midnight #0A0F1C) with gold accent (#F59E0B) — professional + trust
+- Cairo font for Arabic headings, Inter for body, JetBrains Mono for numbers
+- "Gold Pulse" signature element — agent avatar pulses gold when thinking
+- Gold left border on all AI-generated content cards
+- forwardRef on all custom components for future shadcn/ui swap
+- Demo JWT auth — auto-generates Bearer token matching backend HS256
+- Next.js proxy rewrite `/api/*` → localhost:8000 to avoid CORS
+Verification:
+- `npm run build` — compiled successfully ✅ (9 pages, /m1 = 290 kB)
+- Sprint 5 regression: 10/10 PASSED ✅ (backend fix verified)
+Result: SUCCESS — M1 Sprint 6 COMPLETE
+
+---
+
+## Step 27
+
+Time: 2026-06-21
+Action: Implemented M1 Multi-turn context resolution and LangSmith trace-based fixes
+Reason: Context was failing for follow-up questions (e.g., "قارنه بالربع الأول من نفس السنة") because chat history was not persisted or loaded into the intent classifier correctly. LangSmith trace analysis revealed empty history, incorrect date resolution, and missing comparison logic in DB tool.
+Files created/modified:
+- agents/m1/schemas/m1_state.py — Added `session_id` and `chat_history`.
+- agents/prompts/intent_classifier.py — Added history reference logic for ambiguous pronouns and follow-up date resolution rules.
+- agents/m1/nodes/intent_classifier_node.py — Prepended previous turns as `HumanMessage` and `AIMessage` with `[previous turn]` tag.
+- backend/services/conversation_service.py — Implemented `save_message` and `get_recent_messages` to read/write to the `conversations` table. Fixed asyncpg jsonb cast syntax (`CAST(:metadata AS jsonb)`).
+- backend/api/v1/m1_query.py — Orchestrated history fetching before graph execution and message saving after.
+- frontend/hooks/useM1Query.ts, frontend/lib/api.ts, frontend/types/m1.ts — Client-side session ID generation and payload update.
+- agents/m1/tools/db_query_tool.py — Added comparison support: runs queries twice for `date_range` and `compare_range` and merges results with period labels for charts.
+Result: SUCCESS — Follow-up queries now resolve context accurately and comparisons render natively on charts.
+
+---
+
+## Step 28
+
+Time: 2026-06-22
+Action: Implemented "Context-Aware Data Analyst Copilot" Architecture Migration (Option C).
+Reason: Wakeel needed to behave as a business data analyst, handling multi-turn analytical context, stratified routing (T0-T6), safe and bounded NL2SQL with repair loops, central query gateway, and result evaluation instead of simple template matching.
+Files created:
+- agents/m1/config/*
+- agents/m1/nodes/context_loader_node.py, context_saver_node.py, followup_resolver_node.py, intent_router_node.py, result_evaluator_node.py, t0_conversation_node.py, t3_aggregator_node.py, t3_executor_node.py, t3_planner_node.py, t5_oos_node.py, t6_m3_delegation_node.py
+- agents/m1/schemas/analysis_models.py
+- agents/m1/tools/nl2sql_generator.py, nl2sql_repair.py, query_gateway.py, schema_catalog.py, sql_policy.py
+- agents/prompts/m1_planner.py, m1_router.py, nl2sql.py
+Files modified:
+- agents/m1/graphs/m1_graph.py
+- agents/m1/nodes/clarification_node.py, invoice_analysis_tool_node.py, narrative_generator_node.py, output_selector_node.py, validation_enrichment_node.py
+- agents/m1/schemas/m1_state.py
+- agents/m1/tools/db_query_tool.py
+- backend/api/v1/m1_query.py
+- backend/core/config.py
+- backend/services/conversation_service.py
+Key design decisions:
+- Stratified Routing: separated domain intents from execution tiers (T0-T6).
+- Structured Context: transitioned from raw text history to bounded analytical frames stored in conversation metadata.
+- Central Query Gateway: all DB executions (templates and NL2SQL) now pass through strict AST/schema validation and readonly execution.
+- Bounded NL2SQL (T3): implemented generate-validate-execute-repair loop for non-template queries.
+- Result Evaluation: added ResultEvaluatorNode to verify data completeness, gaps, and shapes before narrative generation.
+Result: SUCCESS — The M1 agent architecture has been fully upgraded to the Stratified Routing with Bounded Analytical Execution model.
+
+---
+
+## Remaining Work (for implementation phase)
+
+The following are NOT architecture tasks — they are implementation tasks for the development team:
+
+### M1 — Sprint 0
+- [x] Design PostgreSQL schema — 13 tables deployed on Supabase (see db_schema_reference.md)
+- [x] Create read-only DB user (SELECT only) — erp_readonly confirmed working
+- [x] Enable pgvector extension — v0.8.0 on PostgreSQL 17.6
+- [x] Seed mock ERP data — 13 tables with realistic data (invoices=318, orders=250, etc.)
+- [x] Configure .env (API keys, DB connection) — all connections verified
+- [x] FastAPI project setup + LangGraph + SQLAlchemy async pool — implemented (`backend/main.py`, `backend/core/database.py`)
+- [x] LLM Client: single instance for GPT-4o / GPT-4o-mini — implemented (`agents/shared/llm_client.py`)
+- [x] Shared Services: JWT auth + logging + error handler — implemented (`backend/core/auth.py`, `logging.py`, `middleware/error_handler.py`)
+- [x] **Sprint 0 COMPLETE** ✅
+
+### M1 — Sprint 1 to 6
+- [x] Intent Classification, DB queries, UI integration.
+- [x] **Sprint 1-6 COMPLETE** ✅
+
+### M1 — Architecture Migration (Copilot Shift)
+- [x] Stratified Routing & Bounded Analytical Execution (Option C)
+- [x] Central Query Gateway & NL2SQL Repair Loop
+- [x] Result Evaluation and Structured Conversation Context
+- [x] **Architecture Migration COMPLETE** ✅
+
+### M3 — Sprint 0
+- [x] Mock tables deployed: customer_interactions (32 rows), shipments (189 rows) — customer_id consistent across tables
+- [x] **Sprint 0 COMPLETE** ✅ — Note: table names differ from sprint plan spec but serve the same purpose
+
+### M3 — Sprint 1-4
+- [ ] Implement all 7 M3 nodes (InputParser, DataFetcher, DataCompletenessCheck, IssueClassifier, ContextBuilder, ResponseGenerator, HumanReviewGate)
+- [ ] Wire m3_graph.py
+- [ ] Implement Audit Trail logging (audit_log table ready)
+- [ ] Endpoint /support: accepts { query, identifier }, returns JSON
+
+### M3 — Sprint 5-6
+- [ ] Frontend: Customer Input Interface + Human Review Interface
+- [ ] 4 demo scenarios tested end-to-end
+
+---
+
+## Architecture Decisions & Constraints (MUST READ before Sprint 1)
+
+1. **DB Connection:** Use `DATABASE_URL` (Shared Pooler port 6543) for all app connections. `DATABASE_URL_DIRECT` (port 5432) is blocked on Supabase free tier.
+2. **M1 agent MUST use `READONLY_DB_URL`** — erp_readonly user has SELECT-only access. Never use the main postgres user in agent queries.
+3. **Schema reference:** Always read `docs/architecture/db_schema_reference.md` before writing SQL. Run `scripts/verify_connections.py` to regenerate if schema changes.
+4. **pgvector ready:** Extension installed (v0.8.0). Vector column must be declared as `vector(1536)` to match text-embedding-3-small output.
+5. **M2 is deferred** — All M2 files are in agents/archive/m2/. Do not implement.
+6. **No Odoo, No OCR** — Both archived. All data comes from PostgreSQL directly.
+
 ---
 
 ## Risks Identified
 
 1. **Odoo dependency removed** — backend/services/odoo_client.py archived. All data access now goes through PostgreSQL directly.
-2. **OCR removed** — ocr_agent_node.py archived. Blueprint explicitly states "no OCR, no PDF processing".
-3. **Redis client** — kept in backend/core/ but blueprint does not explicitly require it for MVP. Can be removed if not needed.
-4. **M2 files archived, not deleted** — procurement graph, nodes, tools, schemas are in agents/archive/m2/. Do not implement until M1 + M3 are demo-ready.
-5. **pgvector** — required from Sprint 0 (M1). ✅ Already enabled (v0.8.0).
-6. **Supabase Direct Connection blocked** — port 5432 times out on free tier (IPv6 only). Use Shared Pooler (port 6543) for all connections.
-7. **Table name mismatch** — `shipments` and `customer_interactions` in DB vs `shipping` and `customer_history` in sprint spec. Use actual DB names in all queries.
-
----
+2. **OCR removed** — ocr_agent_node.py archived.
 
 ## Step 29
 
@@ -674,7 +861,6 @@ Details:
 - T3 Planner Upgrade: Updated `t3_planner_node.py` and `m1_planner.py` to inject `get_schema_catalog()` and `TEMPLATES.keys()` directly into the prompt. The planner is now schema-aware and template-aware, avoiding hallucinated columns.
 - NL2SQL Prompt Engineering: Updated `nl2sql.py` with robust schema-specific constraints (e.g. `ILIKE`, correct `invoices` filtering) and high-quality few-shot examples to reduce SQL generation errors to near zero.
 Result: SUCCESS — M1 is fully polished, schema-aware, and frontend bugs resolved.
-
 
 ---
 
@@ -694,3 +880,32 @@ Instead, we must implement a smart column selector that applies across all chart
 4. **Update the Adapter:** The fallback adapter in `chart_config_node.py` (which guesses `label_col`) must be updated to skip ID columns when searching for the best string column.
 
 This approach ensures that we dynamically select human-readable names (like `vendor_name` or `date`) and gracefully fall back to the first column only if no viable categorical column exists, preserving the integrity of all different data tables.
+
+---
+
+## Step 30
+
+Time: 2026-06-27
+Action: Implemented Dual-Layer Chart Axis Solution (Advisory Hints + Smart Heuristics)
+Reason: Fix the issue where charts displayed UUIDs on their axes by combining LLM reasoning (hints) with robust code-level heuristics.
+Details:
+- Updated `agents/m1/schemas/analysis_models.py` to include `VisualizationHints` with strict `Literal` typing for `chart_type`.
+- Updated `agents/m1/schemas/m1_state.py` to store `visualization_hints`.
+- Updated `agents/prompts/m1_planner.py` and `agents/m1/nodes/t3_planner_node.py` to allow the Planner Agent to suggest axes (e.g., `x_axis`, `y_axis`) dynamically in the final step.
+- Completely overhauled `agents/m1/nodes/output_selector_node.py`:
+  - **Priority 1 (Validated Overrides)**: Accepts planner hints only if the specified columns actually exist in the DB query result.
+  - **Priority 2 (Smart Fallback)**: If hints are missing/invalid, it uses a robust heuristic that automatically skips columns named `id`, `uuid`, or ending in `_id` and safely picks the first string column for the categorical axis.
+  - Handled JSON deserialization edge cases by safely casting dict to `VisualizationHints`.
+Result: SUCCESS — Charts now accurately display human-readable columns on their categorical axes without risking software crashes from LLM hallucinations.
+
+---
+
+## Step 31
+
+Time: 2026-06-27
+Action: Fixed M1 routing logic to prevent order/shipment analytical queries from incorrectly delegating to M3 (Customer Support).
+Reason: The heuristic router was short-circuiting queries containing "الشحن" to the M3 module (T6 tier), overriding M1 intent for order aggregations like "كام طلب".
+Details:
+- `agents/m1/nodes/intent_router_node.py` — Removed "الشحن" from `_SUPPORT_SIGNALS` and added "كام طلب" to `_DOMAIN_SIGNALS["orders"]`.
+- `agents/prompts/m1_router.py` — Clarified T6 prompt definition to handle specific/individual support cases only, ensuring aggregate/analytical queries go to T1/T3.
+Result: SUCCESS — Queries like "كام طلب عندنا لسه في مرحلة التجهيز أو الشحن؟" now correctly route to T1 (operational_query) instead of T6 support fallback.

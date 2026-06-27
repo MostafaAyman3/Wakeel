@@ -56,7 +56,16 @@ async def plan_analysis(state: M1State) -> dict:
 
     # Hard-bound even if a model returns an overlong plan.
     steps = plan.steps[:4]
-    return {
+    
+    # Extract visualization hints from the final step if present
+    visualization_hints = None
+    if steps:
+        for step in reversed(steps):
+            if step.visualization_hints:
+                visualization_hints = step.visualization_hints
+                break
+
+    result = {
         "react_plan": [step.model_dump() for step in steps],
         "react_iteration": 0,
         "db_execution_count": 0,
@@ -64,4 +73,8 @@ async def plan_analysis(state: M1State) -> dict:
         "react_done": False,
         "react_exit_reason": "",
     }
+    if visualization_hints is not None:
+        result["visualization_hints"] = visualization_hints
+
+    return result
 

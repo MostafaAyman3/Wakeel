@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import Literal, TypedDict, Optional
 
+from agents.m1.schemas.analysis_models import VisualizationHints
+
 IntentType = Literal[
     "financial_query",
     "operational_query",
@@ -72,6 +74,7 @@ class M1State(TypedDict, total=False):
     output_format: OutputType     # direct_text | metric_card | formatted_text_list | table | bar_chart | line_chart | narrative | alert
     narrative: str                # التحليل اللغوي المُولَّد
     chart_config: Optional[dict]  # ECharts JSON config — None لو مفيش chart
+    visualization_hints: Optional[VisualizationHints] # Advisory hints for how the data should be displayed
 
     # ── Context ───────────────────────────────────────────────────
     user_context: dict            # اختياري — { user_id, role, permissions } من الـ JWT
