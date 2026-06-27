@@ -21,8 +21,11 @@ TIERS
 - T4: a valid analytics request with missing information or materially different
   interpretations that cannot be resolved from context.
 - T5: outside business analytics, unsupported prediction, or unrelated request.
-- T6: customer support, complaint, refund, shipment tracking, order problem,
-  invoice dispute, escalation, or case/ticket request. T6 delegates to M3.
+- T6: customer support for a SPECIFIC individual customer case, complaint, refund,
+  tracking a specific shipment, specific order problem, specific invoice dispute,
+  escalation, or case/ticket request. T6 delegates to M3. Aggregate or analytical
+  questions about orders/shipments (e.g. 'how many orders are pending', 'total shipments')
+  belong to M1 analytics (T1/T3).
 
 ROUTING PRECEDENCE
 1. Pending clarification continuation.

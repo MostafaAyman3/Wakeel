@@ -32,11 +32,23 @@ const BarChart = forwardRef<HTMLDivElement, BarChartProps>(
     };
 
     const option = useMemo(() => {
-      const series = config.series[0];
-      if (!series || !series.data || series.data.length === 0) return null;
+      if (!config.series || config.series.length === 0) return null;
 
-      const categories = series.data.map((d) => String(d.x));
-      const values = series.data.map((d) => d.y);
+      const firstSeries = config.series[0];
+      if (!firstSeries || !firstSeries.data || firstSeries.data.length === 0) return null;
+
+      // Handle both framework-agnostic (old) and ECharts (new) JSON formats
+      const isEchartsFormat = !!config.xAxis;
+      const categories = isEchartsFormat ? config.xAxis.data : firstSeries.data.map((d: any) => String(d.x));
+      const yAxisLabel = config.y_axis?.label || "";
+
+      const colors = [
+        ["#B45309", "#F59E0B"], // Amber/Gold
+        ["#0369A1", "#38BDF8"], // Light Blue
+        ["#BE185D", "#EC4899"], // Pink
+        ["#047857", "#10B981"], // Emerald
+        ["#5B21B6", "#8B5CF6"]  // Violet
+      ];
 
       // Use horizontal bars for better label readability
       return {
@@ -54,6 +66,12 @@ const BarChart = forwardRef<HTMLDivElement, BarChartProps>(
               top: 0,
             }
           : undefined,
+        legend: config.series.length > 1 ? {
+          data: config.series.map(s => s.name),
+          textStyle: { color: "#94A3B8", fontFamily: isAr ? "Cairo" : "Inter", fontSize: 11 },
+          bottom: 0,
+          left: "center",
+        } : undefined,
         tooltip: {
           trigger: "axis",
           axisPointer: { type: "shadow" },
@@ -62,9 +80,15 @@ const BarChart = forwardRef<HTMLDivElement, BarChartProps>(
           borderWidth: 1,
           textStyle: { color: "#F8FAFC", fontSize: 12, fontFamily: isAr ? "Cairo" : "Inter" },
           formatter: (params: any) => {
-            const p = Array.isArray(params) ? params[0] : params;
-            const val = typeof p.value === "number" ? formatValue(p.value) : p.value;
-            return `<strong style="color:#F59E0B">${p.name}</strong><br/>${config.y_axis.label}: ${val}`;
+            const list = Array.isArray(params) ? params : [params];
+            if (list.length === 0) return "";
+            
+            let html = `<strong style="color:#F8FAFC">${list[0].name}</strong><br/>`;
+            list.forEach((p: any) => {
+              const val = typeof p.value === "number" ? formatValue(p.value) : (p.value ?? "—");
+              html += `${p.marker} ${p.seriesName}: <strong style="color:#F8FAFC">${val}</strong><br/>`;
+            });
+            return html;
           },
           extraCssText: "border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);",
         },
@@ -72,7 +96,7 @@ const BarChart = forwardRef<HTMLDivElement, BarChartProps>(
           left: "4%",
           right: "8%",
           top: config.title ? "18%" : "8%",
-          bottom: "8%",
+          bottom: config.series.length > 1 ? "14%" : "8%",
           containLabel: true,
         },
         xAxis: {
@@ -105,29 +129,32 @@ const BarChart = forwardRef<HTMLDivElement, BarChartProps>(
           axisLine: { lineStyle: { color: "#334155" } },
           axisTick: { show: false },
         },
-        series: [
-          {
-            name: series.name,
+        series: config.series.map((s, idx) => {
+          const colorPair = colors[idx % colors.length];
+          const values = isEchartsFormat ? s.data : s.data.map((d: any) => d.y);
+          
+          return {
+            name: s.name,
             type: "bar",
             data: values,
-            barWidth: "55%",
+            barWidth: config.series.length > 1 ? "30%" : "55%",
             barMaxWidth: 32,
             itemStyle: {
               color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-                { offset: 0, color: "#B45309" },
-                { offset: 1, color: "#F59E0B" },
+                { offset: 0, color: colorPair[0] },
+                { offset: 1, color: colorPair[1] },
               ]),
               borderRadius: [0, 4, 4, 0],
             },
             emphasis: {
               itemStyle: {
-                color: "#FCD34D",
+                color: colorPair[1],
                 shadowBlur: 8,
                 shadowColor: "rgba(245, 158, 11, 0.3)",
               },
             },
-          },
-        ],
+          };
+        }),
         animation: true,
         animationDuration: 600,
         animationEasing: "cubicOut",

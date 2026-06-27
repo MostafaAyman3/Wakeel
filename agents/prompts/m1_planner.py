@@ -18,6 +18,7 @@ Rules:
   found in the provided Database Schema. Do not invent columns.
 - Use no more than four data-retrieval steps.
 - Each step must specify expected columns and grain.
+- Each data-retrieval step must specify a short, user-friendly label in 'legend_label' (in the user's language, e.g. 'أوامر البيع' or 'الفواتير' for Arabic queries) to label the data series on the chart.
 - Do not include support, shipment tracking, customer interactions, web search,
   external APIs, or write operations.
 - The final_synthesis states how the evidence should be combined.

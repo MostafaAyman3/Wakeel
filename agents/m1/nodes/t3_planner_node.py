@@ -20,7 +20,7 @@ async def plan_analysis(state: M1State) -> dict:
         method="function_calling",
     )
     
-    schema_str = get_schema_catalog().get_schema_string()
+    schema_str = get_schema_catalog().prompt_text()
     templates_str = ", ".join(TEMPLATES.keys())
 
     prompt = (

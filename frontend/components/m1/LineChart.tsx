@@ -33,11 +33,18 @@ const LineChart = forwardRef<HTMLDivElement, LineChartProps>(
     };
 
     const option = useMemo(() => {
-      const series = config.series[0];
-      if (!series || !series.data || series.data.length === 0) return null;
+      if (!config.series || config.series.length === 0) return null;
 
-      const xData = series.data.map((d) => String(d.x));
-      const yData = series.data.map((d) => d.y);
+      const firstSeries = config.series[0];
+      if (!firstSeries || !firstSeries.data || firstSeries.data.length === 0) return null;
+
+      // Handle both framework-agnostic (old) and ECharts (new) JSON formats
+      const isEchartsFormat = !!config.xAxis;
+      const xData = isEchartsFormat ? config.xAxis.data : firstSeries.data.map((d: any) => String(d.x));
+      const xAxisLabel = config.x_axis?.label || "";
+      const yAxisLabel = config.y_axis?.label || "";
+
+      const colors = ["#F59E0B", "#38BDF8", "#EC4899", "#10B981", "#8B5CF6"];
 
       return {
         backgroundColor: "transparent",
@@ -54,6 +61,12 @@ const LineChart = forwardRef<HTMLDivElement, LineChartProps>(
               top: 0,
             }
           : undefined,
+        legend: config.series.length > 1 ? {
+          data: config.series.map(s => s.name),
+          textStyle: { color: "#94A3B8", fontFamily: isAr ? "Cairo" : "Inter", fontSize: 11 },
+          bottom: 0,
+          left: "center",
+        } : undefined,
         tooltip: {
           trigger: "axis",
           backgroundColor: "#1E293B",
@@ -61,9 +74,15 @@ const LineChart = forwardRef<HTMLDivElement, LineChartProps>(
           borderWidth: 1,
           textStyle: { color: "#F8FAFC", fontSize: 12, fontFamily: isAr ? "Cairo" : "Inter" },
           formatter: (params: any) => {
-            const p = Array.isArray(params) ? params[0] : params;
-            const val = typeof p.value === "number" ? formatValue(p.value) : p.value;
-            return `<strong style="color:#F59E0B">${p.name}</strong><br/>${config.y_axis.label}: ${val}`;
+            const list = Array.isArray(params) ? params : [params];
+            if (list.length === 0) return "";
+            
+            let html = `<strong style="color:#F8FAFC">${list[0].name}</strong><br/>`;
+            list.forEach((p: any) => {
+              const val = typeof p.value === "number" ? formatValue(p.value) : (p.value ?? "—");
+              html += `${p.marker} ${p.seriesName}: <strong style="color:#F8FAFC">${val}</strong><br/>`;
+            });
+            return html;
           },
           extraCssText: "border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);",
         },
@@ -71,7 +90,7 @@ const LineChart = forwardRef<HTMLDivElement, LineChartProps>(
           left: "4%",
           right: "4%",
           top: config.title ? "20%" : "10%",
-          bottom: "18%",
+          bottom: config.series.length > 1 ? "24%" : "18%",
           containLabel: true,
         },
         xAxis: {
@@ -86,7 +105,7 @@ const LineChart = forwardRef<HTMLDivElement, LineChartProps>(
           },
           axisLine: { lineStyle: { color: "#334155" } },
           axisTick: { show: false },
-          name: config.x_axis.label,
+          name: xAxisLabel,
           nameTextStyle: { color: "#64748B", fontSize: 10, fontFamily: isAr ? "Cairo" : "Inter" },
           nameLocation: "center",
           nameGap: xData.length > 6 ? 45 : 30,
@@ -107,34 +126,37 @@ const LineChart = forwardRef<HTMLDivElement, LineChartProps>(
           axisLine: { show: false },
           axisTick: { show: false },
         },
-        series: [
-          {
-            name: series.name,
+        series: config.series.map((s, idx) => {
+          const color = colors[idx % colors.length];
+          const yData = isEchartsFormat ? s.data : s.data.map((d: any) => d.y);
+          
+          return {
+            name: s.name,
             type: "line",
             data: yData,
             smooth: 0.3,
-            lineStyle: { color: "#F59E0B", width: 2.5 },
-            itemStyle: { color: "#F59E0B", borderWidth: 2, borderColor: "#0A0F1C" },
-            areaStyle: {
+            lineStyle: { color, width: 2.5 },
+            itemStyle: { color, borderWidth: 2, borderColor: "#0A0F1C" },
+            areaStyle: config.series.length === 1 ? {
               color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
                 { offset: 0, color: "rgba(245, 158, 11, 0.3)" },
                 { offset: 0.7, color: "rgba(245, 158, 11, 0.05)" },
-                { offset: 1, color: "rgba(245, 158, 11, 0)" },
+                { offset: 1, color: "rgba(0,0,0,0)" },
               ]),
-            },
+            } : undefined,
             symbol: "circle",
             symbolSize: yData.length > 12 ? 4 : 7,
             emphasis: {
               itemStyle: {
                 color: "#FCD34D",
-                borderColor: "#F59E0B",
+                borderColor: color,
                 borderWidth: 2,
                 shadowBlur: 8,
                 shadowColor: "rgba(245, 158, 11, 0.4)",
               },
             },
-          },
-        ],
+          };
+        }),
         animation: true,
         animationDuration: 800,
         animationEasing: "cubicOut",

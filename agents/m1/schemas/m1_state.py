@@ -10,7 +10,7 @@ The API endpoint initializes all fields with defaults before graph invocation.
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Literal, TypedDict, Optional
 
 IntentType = Literal[
     "financial_query",
@@ -71,7 +71,7 @@ class M1State(TypedDict, total=False):
     # ── Output Formatting (Sprint 5) ──────────────────────────────
     output_format: OutputType     # direct_text | metric_card | formatted_text_list | table | bar_chart | line_chart | narrative | alert
     narrative: str                # التحليل اللغوي المُولَّد
-    chart_config: dict            # Chart config for frontend (Sprint 6) — { chart_type, x_axis, y_axis, title, series }
+    chart_config: Optional[dict]  # ECharts JSON config — None لو مفيش chart
 
     # ── Context ───────────────────────────────────────────────────
     user_context: dict            # اختياري — { user_id, role, permissions } من الـ JWT

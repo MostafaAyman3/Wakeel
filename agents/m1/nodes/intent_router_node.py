@@ -19,7 +19,7 @@ logger = structlog.get_logger(__name__)
 _ARABIC_DIACRITICS = re.compile(r"[\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed]")
 _SUPPORT_SIGNALS = (
     "شكوى", "مشكله", "مشكلة", "refund", "استرجاع", "تصعيد", "كلم مدير",
-    "ticket", "case", "فين طلبي", "تتبع", "الشحن", "اتأخر طلبي",
+    "ticket", "case", "فين طلبي", "تتبع", "اتأخر طلبي",
     "الفاتوره غلط", "الفاتورة غلط", "لم اطلب", "ما طلبتش",
 )
 _GREETING_SIGNALS = (
@@ -64,7 +64,7 @@ _DOMAIN_SIGNALS: dict[str, tuple[str, ...]] = {
     ),
     "orders": (
         "عدد الطلبات", "حاله الطلبات", "حالة الطلبات", "orders were",
-        "orders delivered", "pending orders", "delivered this",
+        "orders delivered", "pending orders", "delivered this", "كام طلب",
     ),
     "sales": (
         "مبيعات", "ايرادات", "إيرادات", "revenue", "sales", "top products",

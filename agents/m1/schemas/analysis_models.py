@@ -93,6 +93,10 @@ class PlanStep(BaseModel):
     expected_columns: list[str] = Field(default_factory=list)
     expected_grain: str = "unknown"
     depends_on: list[str] = Field(default_factory=list)
+    legend_label: str | None = Field(
+        None,
+        description="Short user-facing label for this step's data series in chart legends/table columns, e.g. 'أوامر البيع' or 'الفواتير'"
+    )
 
 
 class AnalyticalPlan(BaseModel):

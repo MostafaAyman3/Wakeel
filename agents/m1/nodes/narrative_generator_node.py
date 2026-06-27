@@ -60,6 +60,8 @@ async def generate_narrative(state: M1State) -> dict:
     anomaly_details: dict = state.get("anomaly_details", {})
     chart_config: dict | None = state.get("chart_config")
     existing_response: dict = state.get("final_response", {})
+    chat_history = state.get("chat_history", [])
+    analysis_frame = state.get("analysis_frame", {})
 
     language_name = _LANGUAGE_NAMES.get(language, "English")
 
@@ -83,6 +85,8 @@ async def generate_narrative(state: M1State) -> dict:
             language_name=language_name,
             anomaly_detected=anomaly_detected,
             anomaly_details=anomaly_details,
+            chat_history=chat_history,
+            analysis_frame=analysis_frame,
         )
 
     # ── Assemble final_response ────────────────────────────────────────────
@@ -138,6 +142,8 @@ async def _generate_narrative_llm(
     language_name: str,
     anomaly_detected: bool,
     anomaly_details: dict,
+    chat_history: list,
+    analysis_frame: dict,
 ) -> str:
     """Call GPT-4o to generate an analytical narrative."""
 
@@ -167,6 +173,8 @@ async def _generate_narrative_llm(
         columns=", ".join(columns),
         data_summary=data_summary,
         format_instructions=format_instructions,
+        chat_history=json.dumps(chat_history[-3:] if chat_history else [], ensure_ascii=False),
+        analysis_frame=json.dumps(analysis_frame, ensure_ascii=False),
     )
 
     try:
