@@ -54,30 +54,90 @@ Wakeel is designed as a unified hub hosting multiple specialized AI agents. You 
 
 ---
 
-## 🏗 System Architecture (v2.0 - Stratified Routing)
+## 🏗 System Architecture
 
-The platform utilizes a "Stratified Routing" model. Every request is routed into specific execution tiers (T0 to T6), decoupling conversational intent from database analytical execution. This ensures that analytical complexity is bounded, safer, and supports dynamic valid NL2SQL execution for complex queries.
+Wakeel is architected as a Multi-Agent system. The platform consists of a global macro-architecture that routes traffic to specialized LangGraph agents, and a highly detailed micro-architecture (Stratified Routing) specifically for the M1 copilot.
+
+### 1. Macro Architecture (Multi-Agent System)
 
 ```mermaid
 graph TD
     %% Frontend Layer
     subgraph Frontend [Frontend - Next.js]
         GlobalNav[Global Module Switcher]
-        UI[Chat Interface / Dashboards]
-        Charts[Apache ECharts Visualizations]
-        GlobalNav --> UI
-        UI --> Charts
+        
+        subgraph Views [Module Interfaces]
+            UI_M1[M1: Chat Copilot]
+            UI_M2[M2: Procurement Dashboard]
+            UI_M3[M3: Support Portal]
+        end
+        GlobalNav --> Views
     end
 
+    %% Backend API Layer
+    subgraph Backend [Backend - FastAPI]
+        API_M1[/api/v1/m1_query]
+        API_M2[/api/v1/m2/*]
+        API_M3[/api/v1/m3/*]
+    end
+
+    %% Agentic Layer
+    subgraph Agents [Agent Layer - LangGraph]
+        
+        subgraph M1_Agent [M1: Financial Intelligence]
+            Router{Intent Router}
+            T1_3[T1-T3: Analytical & SQL]
+            T4_6[T4-T6: Out-of-Scope & Support]
+            Router --> T1_3 & T4_6
+        end
+
+        subgraph M2_Agent [M2: Procurement Agent]
+            Inventory[Inventory Analysis]
+            Pricing[Pricing Engine]
+            Alerts[Anomaly Alerts]
+        end
+
+        subgraph M3_Agent [M3: Customer Support]
+            Ticketing[Support Ticketing]
+            HumanReview[Human-in-the-loop]
+        end
+
+    end
+
+    %% Database Layer
+    subgraph Data [Data Layer - Supabase]
+        DB[(PostgreSQL 17.6)]
+        VectorDB[(pgvector: Tax Laws)]
+    end
+
+    %% Connections
+    UI_M1 <-->|JSON| API_M1
+    UI_M2 <-->|JSON| API_M2
+    UI_M3 <-->|JSON| API_M3
+
+    API_M1 <--> M1_Agent
+    API_M2 <--> M2_Agent
+    API_M3 <--> M3_Agent
+
+    T1_3 <-->|Read-only SQL| DB
+    Inventory <-->|Read-only SQL| DB
+    Ticketing <-->|Read/Write| DB
+    T1_3 <-->|Semantic Search| VectorDB
+```
+
+### 2. Micro Architecture: M1 Stratified Routing (v2.0)
+
+For the M1 Intelligence Agent, the platform utilizes a "Stratified Routing" model. Every request is routed into specific execution tiers (T0 to T6), decoupling conversational intent from database analytical execution. This ensures that analytical complexity is bounded, safer, and supports dynamic valid NL2SQL execution for complex queries.
+
+```mermaid
+graph TD
     %% Backend Layer
     subgraph Backend [Backend - FastAPI]
-        API[API Routers<br>/api/v1/*]
-        Auth[JWT Authentication]
-        API --> Auth
+        API[API Router<br>/api/v1/m1_query]
     end
 
     %% Agent Layer (LangGraph v2.0)
-    subgraph Agents [Agent Layer - Stratified LangGraph]
+    subgraph Agents [M1 Agent Layer - Stratified LangGraph]
         ContextLoad[Context Loader]
         Router{Intent Router}
         
@@ -120,19 +180,8 @@ graph TD
         Narrative --> ContextSave
     end
 
-    %% Database Layer
-    subgraph Data [Data Layer - Supabase]
-        DB[(PostgreSQL 17.6)]
-        VectorDB[(pgvector)]
-        DB -.-> VectorDB
-    end
-
     %% Connections
-    UI <-->|JSON + Auth| API
     API <--> ContextLoad
-    T1 <-->|Read-only SQL| DB
-    T3 <-->|Validated NL2SQL| DB
-    T1 <-->|Cosine Similarity| VectorDB
 ```
 
 ### 🔄 Architectural Advancements (Copilot Shift)
