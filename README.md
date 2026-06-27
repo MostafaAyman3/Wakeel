@@ -180,8 +180,18 @@ graph TD
         Narrative --> ContextSave
     end
 
+    %% Database Layer
+    subgraph Data [Data Layer - Supabase]
+        DB[(PostgreSQL 17.6)]
+        VectorDB[(pgvector)]
+        DB -.-> VectorDB
+    end
+
     %% Connections
     API <--> ContextLoad
+    T1 <-->|Read-only SQL| DB
+    T3 <-->|Validated NL2SQL| DB
+    T1 <-->|Cosine Similarity| VectorDB
 ```
 
 ### 🔄 Architectural Advancements (Copilot Shift)
