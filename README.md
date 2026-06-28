@@ -35,9 +35,9 @@ Wakeel is designed as a unified hub hosting multiple specialized AI agents. You 
   - M2 provides a procurement dashboard focusing on inventory status, active alerts, RFQ drafts, and pricing recommendations.
   - The UI layout is established and accessible via the global Module Switcher. *(Note: The backend AI orchestration for M2 is currently deferred to future iterations).*
 
-- 🎧 **M3 (Customer Support Agent)**: **Infrastructure Ready.**
-  - Sprint 0 completed (Database mock tables for customer interactions and shipments).
-  - Placeholder UI integrated into the global navigation. Development of the human review and support routing agent is up next.
+- 🎧 **M3 (Customer Support Agent)**: **Fully Operational.**
+  - Complete Human-in-the-Loop (HITL) architecture with an intelligent Customer Support copilot.
+  - Features dynamic RAG-based automated responses, real-time escalation detection, confidence thresholding, and a dedicated Customer Support Interface for human review (approve, revise, escalate).
 
 ---
 
@@ -221,7 +221,7 @@ Version 2.0 transforms Wakeel from a basic "ERP Chatbot" to a **Context-Aware Da
 ├── agents/             # LangGraph agent definitions, nodes, tools, and prompts
 │   ├── m1/             # M1 Intelligence Agent (Stratified Copilot Architecture)
 │   ├── m2/             # M2 Procurement Agent (Backend Deferred/Archived)
-│   ├── m3/             # M3 Customer Support Agent (Placeholders ready)
+│   ├── m3/             # M3 Customer Support Agent (Support Router, Human-in-the-loop, Mini-RAG)
 │   └── shared/         # Shared LLM clients & infrastructure
 ├── backend/            # FastAPI backend, API routes, Auth, Database connections
 ├── frontend/           # Next.js 14 bilingual interface (Chat, M2 Dashboards, Global Nav)
@@ -290,6 +290,7 @@ Version 2.0 transforms Wakeel from a basic "ERP Chatbot" to a **Context-Aware Da
 The repository includes extensive testing scripts:
 - **E2E Integration**: Run `python scripts/test_e2e_all_sprints.py` to verify the entire M1 pipeline (Sprints 1-5).
 - **RAG Testing**: Run `python scripts/test_rag.py` to test semantic search and LLM extraction.
+- **M3 Integration**: Run `python scripts/test_unified_support.py` to test the Escalation, Routing, and Human-in-the-Loop M3 workflows.
 - **Unit Tests**: Check individual sprint tests (e.g., `test_sprint3.py`, `test_sprint5.py`).
 
 ---
