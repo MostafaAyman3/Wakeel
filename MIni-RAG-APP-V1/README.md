@@ -77,32 +77,48 @@ pip install -r requirements.txt
 
 ### 3. Environment Setup
 
-Create a `.env` file from the template:
+Create a `.env` file inside the `src` directory from the template:
 
 ```bash
-cp .env.example .env
+cp .env.example src/.env
 ```
 
-Update your credentials:
+Update your credentials in `src/.env`:
 
 ```env
 SUPABASE_URL=your_project_url
 SUPABASE_SERVICE_ROLE_KEY=your_service_key
 OPENAI_API_KEY=your_openai_key
+
 # Choose your providers
 GENERATION_BACKEND=OPENAI
 EMBEDDING_BACKEND=OPENAI
+
+# Vector DB Settings (If using Qdrant instead of Supabase)
+QDRANT_API_KEY=""
+QDRANT_URL=""
 ```
 
-### 4. Run the API
+### 4. Running the Server
 
+You have two options to run the server depending on your environment needs:
+
+**Option A: Standard HTTP (Recommended for quick local dev)**
+Run the server directly from the `src` folder on port 8001 without SSL:
 ```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 5000
+cd src
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001
+```
+
+**Option B: Secure HTTPS (Auto SSL Generation)**
+Run the wrapper script which automatically generates self-signed certificates and starts on port 20905:
+```bash
+python main.py
 ```
 
 ---
 
-## 📡 API Endpoints Summary
+## 🛠 API Endpoints Summary
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
