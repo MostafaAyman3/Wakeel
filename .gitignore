@@ -24,3 +24,8 @@ test-results/
 
 # Next.js generated
 frontend/next-env.d.ts
+
+# AI tool configs (Claude Code, Gemini CLI, Spec-Kit)
+.claude/
+.gemini/
+.specify/
