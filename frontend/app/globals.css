@@ -68,7 +68,7 @@
 
   /* Alert severity variants */
   .alert-critical {
-    @apply border-danger animate-pulse-border;
+    @apply border-danger animate-pulse-gold;
   }
 
   .alert-warning {
@@ -111,5 +111,12 @@
   .btn-ghost {
     @apply text-ivory/60 hover:text-ivory hover:bg-surface
            px-3 py-2 rounded-lg transition-colors duration-150;
+  }
+
+  /* Confidence "signal" segment */
+  .signal-seg {
+    border-radius: 2px;
+    transform-origin: bottom;
+    transition: background-color 0.2s ease;
   }
 }

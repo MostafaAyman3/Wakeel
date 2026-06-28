@@ -7,7 +7,6 @@ and returns the synthesized audio via ElevenLabs.
 """
 
 from fastapi import APIRouter, UploadFile, File, Form, Request, Response
-from typing import Optional
 
 from backend.services.speech_service import speech_service
 from backend.api.v1.m2_analyze import analyze_inventory
@@ -48,7 +47,7 @@ async def process_voice_command(
         import json
         try:
             chat_history = json.loads(history)
-        except:
+        except json.JSONDecodeError:
             chat_history = []
         
         # 2. Trigger M2 Analyze

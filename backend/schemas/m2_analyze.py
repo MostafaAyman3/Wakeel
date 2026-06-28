@@ -1,6 +1,5 @@
-from typing import List, Optional, Any, Dict
+from typing import List, Any, Dict
 from pydantic import BaseModel
-from uuid import UUID
 
 class AnalyzeRequest(BaseModel):
     trigger_source: str = "manual"

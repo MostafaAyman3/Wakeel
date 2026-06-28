@@ -1,0 +1,55 @@
+--- PLACEHOLDER DOCUMENT — replace with real policy before go-live ---
+
+# Warranty Policy / سياسة الضمان
+
+## English
+
+**Standard Warranty**
+All products sold through our platform come with a minimum 12-month manufacturer's warranty from the date of purchase, unless otherwise stated on the product page.
+
+**What Is Covered**
+- Manufacturing defects
+- Premature failure under normal use conditions
+- Hardware malfunctions not caused by misuse
+
+**What Is Not Covered**
+- Physical damage caused by accidents, drops, or misuse
+- Water damage (unless the product is rated waterproof)
+- Damage caused by unauthorised repairs or modifications
+- Normal wear and tear
+
+**How to Make a Warranty Claim**
+1. Contact customer support with your order number and a description of the defect.
+2. Our team will assess the issue and may request photos or a video.
+3. Approved claims will receive a replacement unit or a repair, at our discretion.
+4. If a replacement is not available, a full refund will be issued.
+
+**Extended Warranty**
+Extended warranty plans (up to 3 years) are available for select product categories. See the product page for details.
+
+---
+
+## العربية
+
+**الضمان القياسي**
+تأتي جميع المنتجات المباعة عبر منصتنا بضمان المصنّع لمدة لا تقل عن 12 شهرًا من تاريخ الشراء، ما لم يُذكر خلاف ذلك في صفحة المنتج.
+
+**ما يشمله الضمان**
+- عيوب التصنيع
+- الأعطال المبكرة في ظروف الاستخدام الطبيعية
+- الأعطال في الأجهزة غير الناجمة عن سوء الاستخدام
+
+**ما لا يشمله الضمان**
+- الأضرار المادية الناجمة عن الحوادث أو السقوط أو سوء الاستخدام
+- أضرار الماء (ما لم يكن المنتج مقاومًا للماء)
+- الأضرار الناجمة عن إصلاحات أو تعديلات غير مرخصة
+- البلى الطبيعي
+
+**كيفية تقديم مطالبة بالضمان**
+1. تواصل مع خدمة العملاء برقم طلبك ووصف للعيب.
+2. سيقيّم فريقنا المشكلة وقد يطلب صورًا أو مقطع فيديو.
+3. ستتلقى وحدة استبدال أو إصلاحًا للمطالبات المعتمدة، وفقًا لتقديرنا.
+4. إذا لم يكن البديل متاحًا، سيُصدر استرداد كامل.
+
+**الضمان الممتد**
+تتوفر خطط ضمان ممتد (حتى 3 سنوات) لفئات منتجات محددة. راجع صفحة المنتج للتفاصيل.

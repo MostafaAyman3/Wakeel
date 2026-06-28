@@ -38,8 +38,8 @@ const BarChart = forwardRef<HTMLDivElement, BarChartProps>(
       if (!firstSeries || !firstSeries.data || firstSeries.data.length === 0) return null;
 
       // Handle both framework-agnostic (old) and ECharts (new) JSON formats
-      const isEchartsFormat = !!config.xAxis;
-      const categories = isEchartsFormat ? config.xAxis.data : firstSeries.data.map((d: any) => String(d.x));
+      const isEchartsFormat = !!(config as any).xAxis;
+      const categories = isEchartsFormat ? (config as any).xAxis.data : firstSeries.data.map((d: any) => String(d.x));
       const yAxisLabel = config.y_axis?.label || "";
 
       const colors = [

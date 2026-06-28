@@ -20,3 +20,6 @@ test-results/
 *.db
 .DS_Store
 
+
+# Next.js generated
+frontend/next-env.d.ts

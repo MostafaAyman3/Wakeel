@@ -1,6 +1,5 @@
 import io
 import httpx
-from typing import Optional
 from openai import AsyncOpenAI
 import structlog
 

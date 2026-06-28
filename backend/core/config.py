@@ -85,9 +85,15 @@ class Settings(BaseSettings):
     # M2 n8n webhooks
     n8n_rfq_webhook_url: str = ""
 
+    # Mini-RAG microservice
+    mini_rag_base_url: str = "http://localhost:8001"
+    rag_support_kb_project_id: int = 1
+    rag_tax_project_id: int = 2
+
     # M3 thresholds
     m3_repeat_issue_threshold: int = 2
     m3_confidence_review_threshold: float = 0.70
+    m3_clarification_max_attempts: int = 2  # Feature 004: ask N times then escalate
 
     # Frontend
     next_public_api_base_url: str = "http://localhost:8000"

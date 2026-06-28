@@ -1,0 +1,934 @@
+{
+  "backend": "http://localhost:8000",
+  "summary": {
+    "high": [
+      65,
+      65
+    ],
+    "medium": [
+      23,
+      23
+    ],
+    "turns_fully_green": [
+      21,
+      21
+    ]
+  },
+  "scenarios": [
+    {
+      "persona": "Sara (EN shopper)",
+      "session": "sara-4d2191f9-bbfc-4d30-9b2a-8bfb380f00d5",
+      "turns": [
+        {
+          "msg": "Hi",
+          "elapsed_s": 4.59,
+          "http_status": 200,
+          "route": "greeting",
+          "final_response": "Hello! How can I help you today?",
+          "rag_sources": [],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected greeting, got greeting"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected en, reply_has_arabic=False, len=32"
+            },
+            {
+              "check": "sources_absent",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected sources=False, got []"
+            },
+            {
+              "check": "review_required",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected review=False, got False"
+            },
+            {
+              "check": "escalation_needed",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected escalation=False, got False"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "What is your return policy?",
+          "elapsed_s": 15.3,
+          "http_status": 200,
+          "route": "general_knowledge",
+          "final_response": "I'm sorry, but I couldn't find any specific information related to your account. However, I can share our return policy with you. \n\nAccording to our policy, you can return most products within 14 days of receipt for a full refund, provided that the item is unused, in its original packaging, and accompanied by proof of purchase. Please note that some items are non-returnable, such as digital products, perishable goods, and customized items.\n\nIf you need to initiate a return, please contact customer service with your order number, and we will assist you in obtaining a Return Merchandise Authorization (RMA) number and guide you on how to return the product.\n\nIf you have any other questions, feel free to ask!",
+          "rag_sources": [
+            "return_policy.txt",
+            "warranty_policy.txt",
+            "shipping_policy.txt"
+          ],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected general_knowledge, got general_knowledge"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected en, reply_has_arabic=False, len=714"
+            },
+            {
+              "check": "sources_present",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected sources=True, got ['return_policy.txt', 'warranty_policy.txt', 'shipping_policy.txt']"
+            },
+            {
+              "check": "review_required",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected review=False, got False"
+            },
+            {
+              "check": "escalation_needed",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected escalation=False, got False"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "How long does shipping take?",
+          "elapsed_s": 9.33,
+          "http_status": 200,
+          "route": "general_knowledge",
+          "final_response": "I'm sorry, but I couldn't find any specific information related to your order. However, I can provide some general information about our shipping times. According to our policy, shipping times vary depending on the method you choose. For standard shipping, it typically takes 5–7 business days. If you opt for express shipping, you can expect delivery in 2–3 business days. We also offer same-day delivery in select areas if you place your order before 12:00 PM.\n\nIf you have any other questions or need further assistance, please feel free to ask!",
+          "rag_sources": [
+            "shipping_policy.txt",
+            "faq.txt"
+          ],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected general_knowledge, got general_knowledge"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected en, reply_has_arabic=False, len=548"
+            },
+            {
+              "check": "sources_present",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected sources=True, got ['shipping_policy.txt', 'faq.txt']"
+            },
+            {
+              "check": "review_required",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected review=False, got False"
+            },
+            {
+              "check": "escalation_needed",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected escalation=False, got False"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "Thanks!",
+          "elapsed_s": 4.17,
+          "http_status": 200,
+          "route": "greeting",
+          "final_response": "You're welcome! How can I help you today?",
+          "rag_sources": [],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected greeting, got greeting"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected en, reply_has_arabic=False, len=41"
+            },
+            {
+              "check": "sources_absent",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected sources=False, got []"
+            },
+            {
+              "check": "review_required",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected review=False, got False"
+            },
+            {
+              "check": "escalation_needed",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected escalation=False, got False"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "persona": "Ahmed (AR shopper)",
+      "session": "ahmed-541eb3be-87b3-4c98-b0d0-90db361e0171",
+      "turns": [
+        {
+          "msg": "السلام عليكم",
+          "elapsed_s": 4.17,
+          "http_status": 200,
+          "route": "greeting",
+          "final_response": "وعليكم السلام! كيف يمكنني مساعدتك اليوم؟",
+          "rag_sources": [],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected greeting, got greeting"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected ar, reply_has_arabic=True, len=40"
+            },
+            {
+              "check": "sources_absent",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected sources=False, got []"
+            },
+            {
+              "check": "review_required",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected review=False, got False"
+            },
+            {
+              "check": "escalation_needed",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected escalation=False, got False"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "كم يستغرق الشحن؟",
+          "elapsed_s": 9.76,
+          "http_status": 200,
+          "route": "general_knowledge",
+          "final_response": "عزيزي العميل،\n\nتستغرق الطلبات عادةً من 5 إلى 7 أيام عمل للشحن العادي، ومن 2 إلى 3 أيام عمل للشحن السريع. إذا كنت بحاجة إلى توصيل في نفس اليوم، يمكننا توفير ذلك إذا تم الطلب قبل الساعة 12 ظهرًا في مناطق محددة.\n\nإذا كان لديك أي استفسار آخر، فلا تتردد في طرحه!",
+          "rag_sources": [
+            "shipping_policy.txt",
+            "faq.txt"
+          ],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected general_knowledge, got general_knowledge"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected ar, reply_has_arabic=True, len=257"
+            },
+            {
+              "check": "sources_present",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected sources=True, got ['shipping_policy.txt', 'faq.txt']"
+            },
+            {
+              "check": "review_required",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected review=False, got False"
+            },
+            {
+              "check": "escalation_needed",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected escalation=False, got False"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "ما هي مدة الضمان؟",
+          "elapsed_s": 8.47,
+          "http_status": 200,
+          "route": "general_knowledge",
+          "final_response": "عزيزي العميل،\n\nجميع المنتجات المباعة لدينا تأتي مع ضمان مصنّع لمدة لا تقل عن 12 شهرًا من تاريخ الشراء، ما لم يُذكر خلاف ذلك. إذا كان لديك أي استفسار آخر، فلا تتردد في طرحه!\n\nإذا كنت بحاجة إلى مساعدة إضافية، فلا تتردد في التواصل معنا. نحن هنا لمساعدتك!",
+          "rag_sources": [
+            "warranty_policy.txt",
+            "return_policy.txt"
+          ],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected general_knowledge, got general_knowledge"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected ar, reply_has_arabic=True, len=251"
+            },
+            {
+              "check": "sources_present",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected sources=True, got ['warranty_policy.txt', 'return_policy.txt']"
+            },
+            {
+              "check": "review_required",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected review=False, got False"
+            },
+            {
+              "check": "escalation_needed",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected escalation=False, got False"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "persona": "Mona (EN order status)",
+      "session": "mona-a9f9a717-0284-4773-aef1-7f25eaef739b",
+      "turns": [
+        {
+          "msg": "Hi, where is my order ORD-2024-0001?",
+          "elapsed_s": 10.36,
+          "http_status": 200,
+          "route": "customer_issue",
+          "final_response": "Hi Salma,\n\nThank you for reaching out to us about your order status.\n\nAccording to our records, your order ORD-2024-0001 has already been delivered. Here are the details:\n\n- Shipping carrier: Sphinx Express  \n- Tracking number: TRK-330283  \n- Shipping status: Delivered  \n- Current location: Cairo — Delivered  \n- Estimated delivery date was: 2024-01-20\n\nYour invoice INV-0001 is for a total amount of 16,000.0 and is currently marked as overdue.\n\nI can also see that you previously contacted us about a product issue and the device was replaced with a new one.\n\nIf you have any questions about the delivery, the product you received, or the payment for this invoice, please let me know what you need and I will be happy to help.",
+          "rag_sources": [],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": "status_inquiry",
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected customer_issue, got customer_issue"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected en, reply_has_arabic=False, len=729"
+            },
+            {
+              "check": "sources_absent",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected sources=False, got []"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "When will it arrive?",
+          "elapsed_s": 9.94,
+          "http_status": 200,
+          "route": "customer_issue",
+          "final_response": "Your case has been escalated to our support team. A support representative will contact you within 24 hours.",
+          "rag_sources": [],
+          "review_required": false,
+          "escalation_needed": true,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected customer_issue, got customer_issue"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected en, reply_has_arabic=False, len=108"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "persona": "Khaled (AR refund -> review)",
+      "session": "khaled-3e6c5b33-c6d7-45c0-b46b-a403a079fa48",
+      "turns": [
+        {
+          "msg": "مرحبا",
+          "elapsed_s": 4.5,
+          "http_status": 200,
+          "route": "greeting",
+          "final_response": "أهلاً بك! كيف يمكنني مساعدتك اليوم؟",
+          "rag_sources": [],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected greeting, got greeting"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected ar, reply_has_arabic=True, len=35"
+            },
+            {
+              "check": "review_required",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected review=False, got False"
+            },
+            {
+              "check": "escalation_needed",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected escalation=False, got False"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "عايز استرداد فلوس فاتورة INV-0001",
+          "elapsed_s": 14.44,
+          "http_status": 200,
+          "route": "customer_issue",
+          "final_response": "سيتواصل معك أحد أفراد فريق الدعم قريباً للمتابعة.",
+          "rag_sources": [],
+          "review_required": true,
+          "escalation_needed": false,
+          "issue_type": "refund_request",
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected customer_issue, got customer_issue"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected ar, reply_has_arabic=True, len=49"
+            },
+            {
+              "check": "review_required",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected review=True, got True"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "persona": "Layla (EN hybrid)",
+      "session": "layla-de32d9de-1c91-4d9e-ba49-fe267507fbdf",
+      "turns": [
+        {
+          "msg": "My order ORD-2024-0001 is late — can I get a refund per your policy?",
+          "elapsed_s": 14.47,
+          "http_status": 200,
+          "route": "hybrid",
+          "final_response": "An agent will follow up with you shortly.",
+          "rag_sources": [
+            "return_policy.txt",
+            "shipping_policy.txt",
+            "faq.txt"
+          ],
+          "review_required": true,
+          "escalation_needed": false,
+          "issue_type": "refund_request",
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected hybrid, got hybrid"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected en, reply_has_arabic=False, len=41"
+            },
+            {
+              "check": "sources_present",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected sources=True, got ['return_policy.txt', 'shipping_policy.txt', 'faq.txt']"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "persona": "Omar (EN memory)",
+      "session": "omar-f7d6cb91-2933-4af8-8166-56306d1012f2",
+      "turns": [
+        {
+          "msg": "how are you?",
+          "elapsed_s": 4.5,
+          "http_status": 200,
+          "route": "greeting",
+          "final_response": "I'm doing well, thank you! How can I help you today?",
+          "rag_sources": [],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected greeting, got greeting"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected en, reply_has_arabic=False, len=52"
+            },
+            {
+              "check": "sources_absent",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected sources=False, got []"
+            },
+            {
+              "check": "review_required",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected review=False, got False"
+            },
+            {
+              "check": "escalation_needed",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected escalation=False, got False"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "what's your return policy?",
+          "elapsed_s": 10.33,
+          "http_status": 200,
+          "route": "general_knowledge",
+          "final_response": "Thank you for reaching out! According to our policy, you can return most products within 14 days of receiving them for a full refund, as long as the product is unused, in its original packaging, and accompanied by proof of purchase. \n\nPlease note that some items are non-returnable, such as digital products, perishable goods, and customized items. If you need to initiate a return, feel free to contact customer service with your order number, and we will be happy to assist you.\n\nIf you have any more questions or need further assistance, just let me know!",
+          "rag_sources": [
+            "return_policy.txt",
+            "warranty_policy.txt",
+            "shipping_policy.txt"
+          ],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected general_knowledge, got general_knowledge"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected en, reply_has_arabic=False, len=558"
+            },
+            {
+              "check": "sources_present",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected sources=True, got ['return_policy.txt', 'warranty_policy.txt', 'shipping_policy.txt']"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "and how long for shipping?",
+          "elapsed_s": 10.62,
+          "http_status": 200,
+          "route": "general_knowledge",
+          "final_response": "I'm sorry, but I couldn't find any specific information related to your order. However, I can share that according to our policy, orders are processed within 1–2 business days after payment confirmation. For shipping, standard shipping typically takes about 5–7 business days, while express shipping is faster at 2–3 business days. If you're in a select area, we also offer same-day delivery for orders placed before 12:00 PM.\n\nIf you have any other questions or need further assistance, please feel free to ask!",
+          "rag_sources": [
+            "shipping_policy.txt",
+            "faq.txt"
+          ],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected general_knowledge, got general_knowledge"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected en, reply_has_arabic=False, len=512"
+            },
+            {
+              "check": "sources_present",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected sources=True, got ['shipping_policy.txt', 'faq.txt']"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "persona": "Edge cases",
+      "session": null,
+      "turns": [
+        {
+          "msg": "ok",
+          "elapsed_s": 4.11,
+          "http_status": 200,
+          "route": "greeting",
+          "final_response": "Hi there! How can I help you today?",
+          "rag_sources": [],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected greeting, got greeting"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "Hello, I'm really not happy with you",
+          "elapsed_s": 9.61,
+          "http_status": 200,
+          "route": "customer_issue",
+          "final_response": "Your case has been escalated to our support team. A support representative will contact you within 24 hours.",
+          "rag_sources": [],
+          "review_required": false,
+          "escalation_needed": true,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected customer_issue, got customer_issue"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "Hi, what is your return policy?",
+          "elapsed_s": 11.15,
+          "http_status": 200,
+          "route": "general_knowledge",
+          "final_response": "Hello! \n\nThank you for reaching out. According to our policy, you can return most items within 14 days of delivery for a full refund, as long as the item is unused, in its original packaging, and you have proof of purchase. However, please note that some items, like digital products, perishable goods, and customized items, cannot be returned.\n\nTo initiate a return, just contact customer support with your order number, and they will guide you through the process. Once approved, refunds are processed within 5–7 business days to your original payment method. If your item arrived damaged or defective, please reach out within 48 hours with photos, and we will arrange a replacement or a full refund at no cost to you.\n\nIf you have any more questions or need further assistance, feel free to ask!",
+          "rag_sources": [
+            "return_policy.txt",
+            "warranty_policy.txt",
+            "shipping_policy.txt"
+          ],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected general_knowledge, got general_knowledge"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "هل الفاتورة تشمل ضريبة القيمة المضافة؟",
+          "elapsed_s": 8.76,
+          "http_status": 200,
+          "route": "general_knowledge",
+          "final_response": "عذرًا، ليس لدي تفاصيل كافية حول الفاتورة وضريبة القيمة المضافة. لكن يمكنني مساعدتك في أي استفسار آخر يتعلق بالزهور أو الباقات. إذا كان لديك رقم مرجعي، يمكنك التحقق منه أو التواصل مع الدعم للحصول على مزيد من المساعدة. نحن هنا لمساعدتك!",
+          "rag_sources": [
+            "__________91______2005_______________________________.txt"
+          ],
+          "review_required": false,
+          "escalation_needed": false,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected general_knowledge, got general_knowledge"
+            },
+            {
+              "check": "reply_language",
+              "severity": "medium",
+              "ok": true,
+              "detail": "expected ar, reply_has_arabic=True, len=234"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "asdfghjkl",
+          "elapsed_s": 7.26,
+          "http_status": 200,
+          "route": "customer_issue",
+          "final_response": "Your case has been escalated to our support team. A support representative will contact you within 24 hours.",
+          "rag_sources": [],
+          "review_required": false,
+          "escalation_needed": true,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_ok",
+              "severity": "high",
+              "ok": true,
+              "detail": "status=200"
+            },
+            {
+              "check": "route",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected customer_issue, got customer_issue"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        },
+        {
+          "msg": "",
+          "elapsed_s": 2.08,
+          "http_status": 422,
+          "route": null,
+          "final_response": null,
+          "rag_sources": null,
+          "review_required": null,
+          "escalation_needed": null,
+          "issue_type": null,
+          "checks": [
+            {
+              "check": "http_status",
+              "severity": "high",
+              "ok": true,
+              "detail": "expected 422, got 422"
+            }
+          ],
+          "all_ok": true,
+          "error": null
+        }
+      ]
+    }
+  ]
+}

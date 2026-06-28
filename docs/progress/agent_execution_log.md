@@ -569,6 +569,36 @@ Result: SUCCESS — Follow-up queries now resolve context accurately and compari
 
 ---
 
+## Step 28
+
+Time: 2026-06-25
+Action: Implemented M3 Sprint 1 — LangGraph Skeleton + Input Parser + Data Fetcher + Completeness Check
+Reason: M3 Sprint 1 deliverable — "agent يُحلّل الإدخال، يجلب البيانات، ويعرف اكتمالها"
+Decision context: A generic Sprint-1 template proposed a separate `app/` tree, in-memory mock dicts, and a `clients` table. Per user decision: (1) keep the existing `agents/m3/` + `backend/` structure, and (2) fetch order/shipping/history from the REAL Supabase tables seeded in Sprint 0 (not in-memory mocks).
+Files created/updated:
+- agents/shared/language.py — shared AR/EN detect_language
+- agents/shared/db_utils.py — jsonify_row/jsonify_rows (datetime/Decimal/UUID → JSON-safe)
+- agents/m3/schemas/m3_state.py — M3State TypedDict (total=False, 12 fields) + build_initial_state()
+- agents/prompts/input_parser.py — bilingual InputParser system prompt
+- agents/m3/nodes/input_parser_node.py — GPT-4o-mini extraction + regex fallback + language detect; trusts API-supplied identifier; escalates when none found
+- agents/m3/tools/invoice_fetcher_tool.py — REAL invoice fetch (invoices + customers)
+- agents/m3/tools/mock_data_tool.py — fetch_order (orders), fetch_shipping (shipments), fetch_history (customer_interactions)
+- agents/m3/nodes/data_fetcher_node.py — asyncio.gather over 4 sources, return_exceptions, missing→None
+- agents/m3/nodes/data_completeness_node.py — completeness scoring (1.0/0.5/0.0) + missing_fields + escalation + get_confidence_label()
+- agents/m3/graphs/m3_graph.py — StateGraph: input_parser → data_fetcher → completeness_check → END; exports `support_graph`
+- backend/api/v1/m3_support.py — POST /api/v1/support wired to support_graph; identifier OPTIONAL; full response schema; errors degrade to escalation
+- agents/m3/{nodes,schemas,graphs,tools}/__init__.py — package inits
+- scripts/test_m3_sprint1.py — integration test (5 cases)
+Key decisions: State is TypedDict (matches M1 + LangGraph); table-name mapping honored (order_status→orders, shipping→shipments, customer_history→customer_interactions); lookups by display_id; M3 uses read-write engine (readonly stays M1-exclusive).
+Verification:
+- Installed backend/requirements.txt on Python 3.10
+- Live integration test: **5/5 PASSED** (real GPT-4o-mini + Supabase) — incl. graceful-degradation (DEL-999) and no-identifier escalation
+- Fixed test fixture: INV-890 (blueprint example) → INV-0001 (real seed format)
+Full detailed log: `docs/progress/agent_execution_log_m3s1.md`
+Result: SUCCESS — M3 Sprint 1 COMPLETE
+
+---
+
 ## Remaining Work (for implementation phase)
 
 The following are NOT architecture tasks — they are implementation tasks for the development team:
@@ -645,15 +675,32 @@ The following are NOT architecture tasks — they are implementation tasks for t
 - [x] Mock tables deployed: customer_interactions (32 rows), shipments (189 rows) — customer_id consistent across tables
 - [x] **Sprint 0 COMPLETE** ✅ — Note: table names differ from sprint plan spec but serve the same purpose
 
-### M3 — Sprint 1-4
-- [ ] Implement all 7 M3 nodes (InputParser, DataFetcher, DataCompletenessCheck, IssueClassifier, ContextBuilder, ResponseGenerator, HumanReviewGate)
-- [ ] Wire m3_graph.py
-- [ ] Implement Audit Trail logging (audit_log table ready)
-- [ ] Endpoint /support: accepts { query, identifier }, returns JSON
+### M3 — Sprint 1
+- [x] Implement InputParserNode (GPT-4o-mini + regex fallback) — `agents/m3/nodes/input_parser_node.py`
+- [x] Implement DataFetcherNode (4 sources, asyncio.gather) — `agents/m3/nodes/data_fetcher_node.py`
+- [x] Implement DataCompletenessCheckNode — `agents/m3/nodes/data_completeness_node.py`
+- [x] Implement fetch tools (REAL invoice + orders/shipments/customer_interactions) — `agents/m3/tools/`
+- [x] Wire m3_graph.py (input_parser → data_fetcher → completeness_check) — `agents/m3/graphs/m3_graph.py`
+- [x] Endpoint /support: accepts { query, identifier? }, returns full JSON — `backend/api/v1/m3_support.py`
+- [x] **Sprint 1 COMPLETE** ✅ — 5/5 integration tests passed (`scripts/test_m3_sprint1.py`). Full detail: `docs/progress/agent_execution_log_m3s1.md`
 
-### M3 — Sprint 5-6
-- [ ] Frontend: Customer Input Interface + Human Review Interface
-- [ ] 4 demo scenarios tested end-to-end
+### M3 — Sprint 2-4
+- [x] Implement IssueClassifierNode + ContextBuilderNode (Sprint 2)
+- [x] Implement ResponseGeneratorNode + Graceful Degradation + Repeat-Issue Detection (Sprint 3)
+- [x] Implement HumanReviewGateNode + EscalationNode + Audit Trail logging (Sprint 4)
+
+### M3 — Sprint 5
+- [x] Backend demo auth: POST /api/v1/auth/login (JWT) — `backend/api/v1/auth.py`
+- [x] Frontend infra (Next.js): config, globals, layout, `@/` alias, api client, types
+- [x] Customer Input Interface — `frontend/components/m3/CustomerInputForm.tsx`
+- [x] Human Review Interface (draft edit + transparency + confidence + approve/reject/escalate) — `frontend/components/m3/HumanReviewPanel.tsx` + ConfidenceIndicator/TransparencyPanel/EscalationView
+- [x] Page wiring (customer + agent tabs) — `frontend/app/m3/page.tsx`; hook `frontend/hooks/useM3Support.ts`
+- [x] Audit logging made best-effort in review actions (no 500 on transient DB hiccup)
+- [x] **Sprint 5 COMPLETE** ✅ — `npm run build` passes; E2E HTTP flow (login→support→approve/reject/escalate) green. Detail: `docs/progress/agent_execution_log_m3s5.md`
+
+### M3 — Sprint 6 (remaining)
+- [ ] Integration polish + 4 demo scenarios scripted end-to-end
+- [ ] (optional) Supervisor escalation queue view
 
 ---
 
@@ -696,3 +743,53 @@ Instead, we must implement a smart column selector that applies across all chart
 4. **Update the Adapter:** The fallback adapter in `chart_config_node.py` (which guesses `label_col`) must be updated to skip ID columns when searching for the best string column.
 
 This approach ensures that we dynamically select human-readable names (like `vendor_name` or `date`) and gracefully fall back to the first column only if no viable categorical column exists, preserving the integrity of all different data tables.
+
+## Step 29
+
+Time: 2026-06-26
+Action: Implemented Feature 004 — Clarifying Follow-up for Missing Identifiers (Spec Kit: specs/004-clarify-missing-identifier)
+Reason: Record-dependent questions without a reference were escalating immediately (problem.md ISSUE-1). Now the agent asks a short, language-matched follow-up for the missing order/invoice/customer number and resolves on the next turn.
+Decision context (clarifications): no ownership verification (MVP, documented privacy limitation); max 2 clarification attempts then escalate; billing/refund still require mandatory human review after data is collected.
+Files created/updated:
+- backend/core/config.py — m3_clarification_max_attempts: int = 2
+- agents/m3/schemas/m3_state.py — clarification fields (clarification_needed, clarification_pending, missing_slot, pending_value, clarification_attempts) + defaults
+- agents/prompts/clarification_agent.py — NEW bilingual clarification prompt
+- agents/m3/nodes/clarification_node.py — NEW: composes AR/EN question; counts prior asks from chat_history; escalates at the limit
+- agents/m3/nodes/input_parser_node.py — missing identifier → clarification (not escalation); ambiguous bare number → ambiguous_type; tightened regex (require digit/hyphen after prefix) + LLM value must contain digit AND letter/hyphen (rejects "ORDER"/"my order"/"1567")
+- agents/m3/graphs/m3_graph.py — register clarification_node; conditional after input_parser (fetch|clarify); clarification → END|escalation_node
+- agents/m3/nodes/escalation_node.py — graceful "couldn't find <ref>" message naming the reference when a supplied ref matched no record (FR-008)
+- backend/repositories/conversations.py — carry assistant metadata; tag clarification turns for attempt counting
+- backend/api/v1/m3_support.py — SupportResponse.clarification_pending; persist clarification tag
+- scripts/test_clarification.py — NEW scenario suite (A–F)
+- scripts/test_m3_sprint1.py — updated obsolete "no-identifier must escalate" case → non-existent reference (still escalates)
+- scripts/test_m3_sprint4.py — TC-06 now asserts required nodes present (allows new nodes)
+- problem.md — ISSUE-1/2/5 marked Fixed, ISSUE-4 Improved
+Verification (live system):
+- scripts/test_clarification.py — 18/18 PASSED
+- scripts/test_m3_sprint1.py — 5/5 ; scripts/test_m3_sprint4.py — 12/12 (no regressions)
+- Confirmed: "Where is my order?" (AR/EN) → clarifying question, not escalation; "my number is 1567" → asks reference type; supplying the reference next turn answers the original question; greeting/knowledge/direct/billing unchanged.
+Result: SUCCESS — Feature 004 COMPLETE
+
+---
+
+## Step 30
+
+Time: 2026-06-27
+Action: Implemented Feature 005 — Conversation Memory & Recall (Spec Kit: specs/005-chat-memory-recall)
+Reason: The assistant forgot facts stated earlier in the same chat (problem.md M-1) and mis-routed personal-recall questions ("what is my name?") to the CRM/clarification path, asking for an order number (M-2). Memory is transcript-based — the conversation history was already loaded for the router but unused by the reply path.
+Decision context (clarifications): Q1 transcript-based memory (no separate fact store); Q2 session-scoped, conversation id persists across page reloads (browser-local); reuse the existing ~10-turn window; never fabricate unknown facts.
+Files created/updated:
+- agents/prompts/greeting_agent.py — broadened to a conversational-reply prompt with a {history_block} transcript; recalls facts from history only, uses most-recent value on update, never invents; still handles pure greetings
+- agents/m3/nodes/greeting_node.py — reads state["chat_history"], formats the recent transcript (last ~12 turns), injects it into the prompt; preserves AR/EN static fallback and never-raise behavior
+- agents/prompts/support_router.py — personal-recall questions (own name / what they said — no DB/policy data) now route to greeting, not customer_issue (fixes M-2); added AR/EN examples + precedence note
+- agents/m3/nodes/intent_router_node.py — verified: already feeds last 3 turns to the router; recall routing works from the question text alone (no change needed)
+- agents/m3/nodes/response_generator_node.py — issue-path replies now receive the conversation transcript (FR-006) so they stay coherent with earlier turns; no-history behavior unchanged
+- backend/repositories/conversations.py — documented the session-scoped isolation guarantee (FR-003); strict filter by session_id (no change needed)
+- frontend/hooks/useM3Support.ts — session_id is now a real UUID (backend uuid.UUID requires it; old "sess-..." ids were silently dropped) persisted in localStorage so memory survives a page reload (FR-010); "New chat" issues a fresh id
+- scripts/test_memory.py — NEW scenario suite (M1–M6: EN/AR recall, isolation, update, no-fabrication, cross-path)
+- problem.md — M-1/M-2 marked Fixed with evidence
+Verification (live system, backend restarted to load changes):
+- scripts/test_memory.py — 10/10 PASSED (M1 EN recall, M2 AR recall, M3 isolation, M4 update-wins, M5 no-fabrication, M6 cross-path)
+- scripts/test_clarification.py — 18/18 ; scripts/test_m3_sprint1.py — 5/5 ; scripts/test_m3_sprint4.py — 12/12 (no regressions)
+- Confirmed: "my name is Kareem" → "what is my name?" answers "Kareem" (AR "كريم"); never-stated name → no order-number ask, no fabrication; cross-session isolation preserved.
+Result: SUCCESS — Feature 005 COMPLETE

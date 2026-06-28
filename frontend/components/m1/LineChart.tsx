@@ -39,8 +39,8 @@ const LineChart = forwardRef<HTMLDivElement, LineChartProps>(
       if (!firstSeries || !firstSeries.data || firstSeries.data.length === 0) return null;
 
       // Handle both framework-agnostic (old) and ECharts (new) JSON formats
-      const isEchartsFormat = !!config.xAxis;
-      const xData = isEchartsFormat ? config.xAxis.data : firstSeries.data.map((d: any) => String(d.x));
+      const isEchartsFormat = !!(config as any).xAxis;
+      const xData = isEchartsFormat ? (config as any).xAxis.data : firstSeries.data.map((d: any) => String(d.x));
       const xAxisLabel = config.x_axis?.label || "";
       const yAxisLabel = config.y_axis?.label || "";
 
