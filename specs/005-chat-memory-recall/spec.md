@@ -21,6 +21,10 @@ Scope is **within one conversation** (the current chat session). A new conversat
 - Q: How should the assistant remember and recall conversation facts? → A: Transcript-based — the recent conversation turns are included in the assistant's context so it can recall anything that was said (no separate fact-extraction store for this iteration).
 - Q: Should the conversation (and its memory) survive a page reload in the same browser? → A: Yes — the conversation id persists in the browser so memory survives a refresh; an explicit "New chat" resets it. Still session-scoped (no cross-customer/cross-device profile).
 
+### Session 2026-06-28
+
+- Q: How far back must recall reliably work for the acceptance tests? → A: Recent bounded window only (~last 10 turns); facts older than the window may be forgotten — acceptance tests exercise facts stated within this span.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Recall a fact the customer stated (Priority: P1)
@@ -83,7 +87,7 @@ The customer changes a fact, or asks about something never said.
 ### Edge Cases
 
 - **No session / single-turn**: When messages aren't tied together as one conversation, recall isn't possible — the assistant behaves as today (known limitation).
-- **Very long conversation**: The assistant remembers recent context; extremely old turns may fall outside the remembered window.
+- **Very long conversation**: The assistant remembers only the recent window (~last 10 turns); turns older than that window fall outside memory and may not be recalled. Acceptance tests exercise facts stated within the window.
 - **Recall on any path**: Whether the follow-up is small talk, a knowledge question, or an issue, the earlier facts are still available.
 - **Mixed languages**: A fact stated in Arabic can be recalled when later asked in English and vice-versa; the reply matches the language of the question.
 - **Contradictory restatements**: The most recently stated value wins.
@@ -101,7 +105,7 @@ The customer changes a fact, or asks about something never said.
 - **FR-006**: Memory MUST apply across every conversational reply path (small talk / greetings, general-knowledge answers, and issue handling) — not only one path.
 - **FR-007**: Recall MUST be language-aware: the reply matches the language of the question, regardless of the language the fact was originally stated in.
 - **FR-008**: A new conversation MUST begin with no carried-over memory from previous conversations.
-- **FR-009**: Memory MUST cover at least the recent span of the conversation needed for natural multi-turn dialogue (a bounded, recent window is acceptable).
+- **FR-009**: Memory MUST cover a bounded recent window of the conversation — approximately the last 10 turns. Facts stated within this window MUST be recallable; facts older than the window MAY fall out of memory.
 - **FR-010**: The same conversation MUST persist across page reloads within the same browser — the conversation identifier is retained locally so memory survives a refresh. An explicit "New chat" action MUST start a fresh conversation with no carried-over memory.
 
 ### Key Entities *(include if feature involves data)*
@@ -114,7 +118,7 @@ The customer changes a fact, or asks about something never said.
 
 ### Measurable Outcomes
 
-- **SC-001**: When a customer states a fact and later asks for it within the same conversation, the assistant returns the correct value in at least 95% of test cases.
+- **SC-001**: When a customer states a fact and later asks for it within the same conversation (and within the recent window of ~10 turns), the assistant returns the correct value in at least 95% of test cases.
 - **SC-002**: Zero cross-conversation leaks — in a representative test set, no fact from one conversation appears in another (0 leaks).
 - **SC-003**: When asked for something never stated in the conversation, the assistant declines without fabricating in 100% of test cases.
 - **SC-004**: Recall succeeds regardless of which reply path handles the follow-up (small talk, knowledge, or issue) — verified across all three paths.
@@ -125,5 +129,5 @@ The customer changes a fact, or asks about something never said.
 - Memory is **session-scoped (short-term)** — it remembers within one ongoing conversation, and that conversation persists across page reloads in the same browser (its identifier is retained locally). A persistent, cross-customer/cross-device profile is out of scope for this iteration.
 - A conversation/session identifier ties turns together (already used by the chat); requests not tied to a session cannot recall (known limitation, consistent with current behavior).
 - Memory uses the existing conversation storage; no new long-term datastore is assumed.
-- "Recent window" is bounded for practicality; the exact span is a tuning detail, not a scope decision.
+- "Recent window" is bounded to approximately the last 10 turns; the exact count is a tuning detail within this bound, not a scope decision.
 - Out of scope: remembering across separate chats/devices, building a durable customer profile, and inferring facts the customer did not actually state.
