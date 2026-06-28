@@ -596,3 +596,55 @@ The following are NOT architecture tasks — they are implementation tasks for t
 5. **pgvector** — required from Sprint 0 (M1). ✅ Already enabled (v0.8.0).
 6. **Supabase Direct Connection blocked** — port 5432 times out on free tier (IPv6 only). Use Shared Pooler (port 6543) for all connections.
 7. **Table name mismatch** — `shipments` and `customer_interactions` in DB vs `shipping` and `customer_history` in sprint spec. Use actual DB names in all queries.
+
+---
+
+## Step 26
+
+Time: 2026-06-26
+Action: Implemented Feature 004 — Clarifying Follow-up for Missing Identifiers (Spec Kit: specs/004-clarify-missing-identifier)
+Reason: Record-dependent questions without a reference were escalating immediately (problem.md ISSUE-1). Now the agent asks a short, language-matched follow-up for the missing order/invoice/customer number and resolves on the next turn.
+Decision context (clarifications): no ownership verification (MVP, documented privacy limitation); max 2 clarification attempts then escalate; billing/refund still require mandatory human review after data is collected.
+Files created/updated:
+- backend/core/config.py — m3_clarification_max_attempts: int = 2
+- agents/m3/schemas/m3_state.py — clarification fields (clarification_needed, clarification_pending, missing_slot, pending_value, clarification_attempts) + defaults
+- agents/prompts/clarification_agent.py — NEW bilingual clarification prompt
+- agents/m3/nodes/clarification_node.py — NEW: composes AR/EN question; counts prior asks from chat_history; escalates at the limit
+- agents/m3/nodes/input_parser_node.py — missing identifier → clarification (not escalation); ambiguous bare number → ambiguous_type; tightened regex (require digit/hyphen after prefix) + LLM value must contain digit AND letter/hyphen (rejects "ORDER"/"my order"/"1567")
+- agents/m3/graphs/m3_graph.py — register clarification_node; conditional after input_parser (fetch|clarify); clarification → END|escalation_node
+- agents/m3/nodes/escalation_node.py — graceful "couldn't find <ref>" message naming the reference when a supplied ref matched no record (FR-008)
+- backend/repositories/conversations.py — carry assistant metadata; tag clarification turns for attempt counting
+- backend/api/v1/m3_support.py — SupportResponse.clarification_pending; persist clarification tag
+- scripts/test_clarification.py — NEW scenario suite (A–F)
+- scripts/test_m3_sprint1.py — updated obsolete "no-identifier must escalate" case → non-existent reference (still escalates)
+- scripts/test_m3_sprint4.py — TC-06 now asserts required nodes present (allows new nodes)
+- problem.md — ISSUE-1/2/5 marked Fixed, ISSUE-4 Improved
+Verification (live system):
+- scripts/test_clarification.py — 18/18 PASSED
+- scripts/test_m3_sprint1.py — 5/5 ; scripts/test_m3_sprint4.py — 12/12 (no regressions)
+- Confirmed: "Where is my order?" (AR/EN) → clarifying question, not escalation; "my number is 1567" → asks reference type; supplying the reference next turn answers the original question; greeting/knowledge/direct/billing unchanged.
+Result: SUCCESS — Feature 004 COMPLETE
+
+---
+
+## Step 27
+
+Time: 2026-06-27
+Action: Implemented Feature 005 — Conversation Memory & Recall (Spec Kit: specs/005-chat-memory-recall)
+Reason: The assistant forgot facts stated earlier in the same chat (problem.md M-1) and mis-routed personal-recall questions ("what is my name?") to the CRM/clarification path, asking for an order number (M-2). Memory is transcript-based — the conversation history was already loaded for the router but unused by the reply path.
+Decision context (clarifications): Q1 transcript-based memory (no separate fact store); Q2 session-scoped, conversation id persists across page reloads (browser-local); reuse the existing ~10-turn window; never fabricate unknown facts.
+Files created/updated:
+- agents/prompts/greeting_agent.py — broadened to a conversational-reply prompt with a {history_block} transcript; recalls facts from history only, uses most-recent value on update, never invents; still handles pure greetings
+- agents/m3/nodes/greeting_node.py — reads state["chat_history"], formats the recent transcript (last ~12 turns), injects it into the prompt; preserves AR/EN static fallback and never-raise behavior
+- agents/prompts/support_router.py — personal-recall questions (own name / what they said — no DB/policy data) now route to greeting, not customer_issue (fixes M-2); added AR/EN examples + precedence note
+- agents/m3/nodes/intent_router_node.py — verified: already feeds last 3 turns to the router; recall routing works from the question text alone (no change needed)
+- agents/m3/nodes/response_generator_node.py — issue-path replies now receive the conversation transcript (FR-006) so they stay coherent with earlier turns; no-history behavior unchanged
+- backend/repositories/conversations.py — documented the session-scoped isolation guarantee (FR-003); strict filter by session_id (no change needed)
+- frontend/hooks/useM3Support.ts — session_id is now a real UUID (backend uuid.UUID requires it; old "sess-..." ids were silently dropped) persisted in localStorage so memory survives a page reload (FR-010); "New chat" issues a fresh id
+- scripts/test_memory.py — NEW scenario suite (M1–M6: EN/AR recall, isolation, update, no-fabrication, cross-path)
+- problem.md — M-1/M-2 marked Fixed with evidence
+Verification (live system, backend restarted to load changes):
+- scripts/test_memory.py — 10/10 PASSED (M1 EN recall, M2 AR recall, M3 isolation, M4 update-wins, M5 no-fabrication, M6 cross-path)
+- scripts/test_clarification.py — 18/18 ; scripts/test_m3_sprint1.py — 5/5 ; scripts/test_m3_sprint4.py — 12/12 (no regressions)
+- Confirmed: "my name is Kareem" → "what is my name?" answers "Kareem" (AR "كريم"); never-stated name → no order-number ask, no fabrication; cross-session isolation preserved.
+Result: SUCCESS — Feature 005 COMPLETE

@@ -29,6 +29,7 @@ from agents.m3.nodes.context_builder_node import build_context
 from agents.m3.nodes.response_generator_node import generate_response
 from agents.m3.nodes.human_review_node import human_review_gate
 from agents.m3.nodes.escalation_node import escalate_case
+from agents.m3.nodes.clarification_node import clarify
 
 
 # ── Routing helpers ───────────────────────────────────────────────────────────
@@ -49,6 +50,16 @@ def _route_after_rag(state: M3State) -> str:
     if route == "hybrid":
         return "crm"
     return "respond"
+
+
+def _route_after_parse(state: M3State) -> str:
+    """After input_parser: ask for a missing reference, or fetch data (Feature 004)."""
+    return "clarify" if state.get("clarification_needed", False) else "fetch"
+
+
+def _route_after_clarify(state: M3State) -> str:
+    """After clarification_node: escalate (attempts spent) or end the turn (asked)."""
+    return "escalate" if state.get("escalation_needed", False) else "end"
 
 
 def _escalation_router(state: M3State) -> str:
@@ -82,6 +93,7 @@ def build_support_graph():
     graph.add_node("response_generator",  generate_response)
     graph.add_node("human_review_gate",   human_review_gate)
     graph.add_node("escalation_node",     escalate_case)
+    graph.add_node("clarification_node",  clarify)              # Feature 004
 
     # ── Entry: intent router ──────────────────────────────────────────
     graph.add_edge(START, "intent_router")
@@ -104,7 +116,17 @@ def build_support_graph():
     )
 
     # CRM pipeline (customer_issue + hybrid after RAG)
-    graph.add_edge("input_parser",           "data_fetcher")
+    # Feature 004: after parsing, ask for a missing reference instead of escalating.
+    graph.add_conditional_edges(
+        "input_parser",
+        _route_after_parse,
+        {"fetch": "data_fetcher", "clarify": "clarification_node"},
+    )
+    graph.add_conditional_edges(
+        "clarification_node",
+        _route_after_clarify,
+        {"escalate": "escalation_node", "end": END},
+    )
     graph.add_edge("data_fetcher",           "completeness_check")
     graph.add_conditional_edges(
         "completeness_check",

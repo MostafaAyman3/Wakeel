@@ -286,19 +286,18 @@ def test_graph_compilation():
     graph = build_support_graph()
     node_names = list(graph.nodes.keys())
 
-    expected = {
-        "__start__",
+    # Required nodes must all be present. Extra nodes (intent_router, greeting,
+    # rag, clarification_node, …) are allowed as the graph grows.
+    required = {
+        "intent_router", "greeting_node", "rag_node",
         "input_parser", "data_fetcher", "completeness_check",
         "issue_classifier", "context_builder", "response_generator",
-        "human_review_gate", "escalation_node",
+        "human_review_gate", "escalation_node", "clarification_node",
     }
-    missing = expected - set(node_names)
-    extra = set(node_names) - expected
-
+    missing = required - set(node_names)
     assert not missing, f"Missing nodes: {missing}"
-    assert not extra, f"Unexpected nodes: {extra}"
 
-    log("TC-06", "Graph compilation — all 9 nodes present", True)
+    log("TC-06", "Graph compilation — all required nodes present", True)
 
 
 # ══════════════════════════════════════════════════════════════════════════

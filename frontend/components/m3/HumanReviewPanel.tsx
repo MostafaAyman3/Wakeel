@@ -52,7 +52,7 @@ export default function HumanReviewPanel({
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           {response.issue_type && (
-            <span className="code rounded-full bg-petrol/10 px-2.5 py-1 text-[11px] font-medium text-petrol-deep">
+            <span className="code rounded-full bg-gold/15 px-2.5 py-1 text-[11px] font-medium text-gold">
               {response.issue_type}
             </span>
           )}
@@ -69,7 +69,7 @@ export default function HumanReviewPanel({
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-petrol-deep">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-gold">
             Draft reply <span className="font-normal normal-case text-sage">— editable</span>
           </label>
           <textarea
@@ -77,7 +77,7 @@ export default function HumanReviewPanel({
             onChange={(e) => setDraft(e.target.value)}
             rows={9}
             dir={isArabic ? "rtl" : "ltr"}
-            className="w-full rounded-card border border-line bg-paper px-4 py-3 text-[15px] leading-relaxed text-ink focus:border-petrol focus:outline-none"
+            className="w-full rounded-card border border-line bg-midnight px-4 py-3 text-[15px] leading-relaxed text-ink focus:border-petrol focus:outline-none"
           />
         </div>
 
@@ -92,7 +92,7 @@ export default function HumanReviewPanel({
               onChange={(e) => setFeedback(e.target.value)}
               rows={2}
               placeholder="e.g. Too formal · mention the refund window"
-              className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm focus:border-petrol focus:outline-none"
+              className="w-full rounded-lg border border-line bg-midnight px-3 py-2 text-sm focus:border-petrol focus:outline-none"
             />
             <div className="mt-2 flex gap-2">
               <button
@@ -125,14 +125,14 @@ export default function HumanReviewPanel({
             <button
               onClick={() => setShowReject((v) => !v)}
               disabled={loading}
-              className="rounded-card border border-line bg-paper px-4 py-2.5 text-sm font-medium text-ink transition hover:border-warn hover:text-warn disabled:opacity-40"
+              className="rounded-card border border-line bg-midnight px-4 py-2.5 text-sm font-medium text-ink transition hover:border-warn hover:text-warn disabled:opacity-40"
             >
               Reject
             </button>
             <button
               onClick={() => onEscalate("Manual escalation by agent")}
               disabled={loading}
-              className="rounded-card border border-line bg-paper px-4 py-2.5 text-sm font-medium text-ink transition hover:border-alert hover:text-alert disabled:opacity-40"
+              className="rounded-card border border-line bg-midnight px-4 py-2.5 text-sm font-medium text-ink transition hover:border-alert hover:text-alert disabled:opacity-40"
             >
               Escalate
             </button>
@@ -157,9 +157,9 @@ export default function HumanReviewPanel({
 
       {/* ── Right: confidence + evidence ───────────────────── */}
       <div className="space-y-4 lg:border-l lg:border-line lg:pl-6">
-        <div className="flex items-center justify-between rounded-card border border-line bg-paper p-4">
+        <div className="flex items-center justify-between rounded-card border border-line bg-midnight p-4">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-petrol-deep">
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-gold">
               Confidence
             </div>
             <div className="mt-0.5 text-[11px] text-sage">Internal · not sent</div>

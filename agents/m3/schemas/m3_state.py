@@ -53,6 +53,13 @@ class M3State(TypedDict, total=False):
     issue_description: str         # cleaned, natural-language problem statement
     language: Literal["ar", "en", "auto"]  # "auto" is the initial default before detection
 
+    # ── Clarification (Feature 004 — ClarificationNode) ───────────
+    clarification_needed: bool          # input_parser: a needed reference is missing
+    clarification_pending: bool         # node: this turn is a follow-up QUESTION (not a final answer)
+    missing_slot: Optional[str]         # "identifier" | "ambiguous_type" | None
+    pending_value: Optional[str]        # raw value awaiting a type (ambiguous_type)
+    clarification_attempts: int         # asks already made this conversation (from chat_history)
+
     # ── Classification (Sprint 2 — IssueClassifierNode) ───────────
     issue_type: IssueType | None   # None until Sprint 2
     issue_priority: Literal["High", "Medium", "Low"]  # Priority level
@@ -110,6 +117,12 @@ def build_initial_state(
         "customer_identifier": identifier or {},
         "issue_description": query,
         "language": language,
+        # Clarification (Feature 004)
+        "clarification_needed": False,
+        "clarification_pending": False,
+        "missing_slot": None,
+        "pending_value": None,
+        "clarification_attempts": 0,
         "issue_type": None,
         "issue_priority": "Medium",
         "context": {},

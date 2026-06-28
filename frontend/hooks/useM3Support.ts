@@ -11,9 +11,52 @@ import type {
 } from "@/types/m3";
 import type { ChatMessage } from "@/components/chat/MessageBubble";
 
-// Stable session id for the lifetime of the page.
-function makeSessionId(): string {
-  return `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+// Conversation session id.
+//
+// Must be a UUID — the backend conversation store parses it with uuid.UUID and
+// silently drops memory for any non-UUID value. Persisted in localStorage so the
+// same conversation (and its memory) survives a page reload (Feature 005 FR-010);
+// "New chat" issues a fresh id.
+const SESSION_STORAGE_KEY = "wakeel.m3.session_id";
+
+function generateUuid(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // RFC4122-ish fallback for environments without crypto.randomUUID.
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+// Read the persisted session id, creating and storing one if absent. Returns a
+// fresh (non-persisted) id during SSR where localStorage is unavailable.
+function getOrCreateSessionId(): string {
+  if (typeof window === "undefined") return generateUuid();
+  try {
+    const existing = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    if (existing) return existing;
+    const fresh = generateUuid();
+    window.localStorage.setItem(SESSION_STORAGE_KEY, fresh);
+    return fresh;
+  } catch {
+    return generateUuid();
+  }
+}
+
+// Generate a new session id and persist it ("New chat" → fresh memory).
+function resetSessionId(): string {
+  const fresh = generateUuid();
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(SESSION_STORAGE_KEY, fresh);
+    } catch {
+      /* ignore storage failures — memory simply won't persist across reloads */
+    }
+  }
+  return fresh;
 }
 
 export interface UseM3Support {
@@ -42,7 +85,7 @@ export function useM3Support(): UseM3Support {
   const [response, setResponse] = useState<SupportResponse | null>(null);
   const [caseId, setCaseId] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<ReviewActionResponse | null>(null);
-  const sessionIdRef = useRef<string>(makeSessionId());
+  const sessionIdRef = useRef<string>(getOrCreateSessionId());
   const lastRequestRef = useRef<{ query: string; identifier: CustomerIdentifier | null } | null>(null);
 
   const addMessage = useCallback((msg: Omit<ChatMessage, "id">) => {
@@ -176,7 +219,7 @@ export function useM3Support(): UseM3Support {
     setCaseId(null);
     setActionResult(null);
     setError(null);
-    sessionIdRef.current = makeSessionId();
+    sessionIdRef.current = resetSessionId();
   }, []);
 
   return {

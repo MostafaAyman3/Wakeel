@@ -72,6 +72,7 @@ class SupportResponse(BaseModel):
     confidence_label: str          # High | Medium | Low — review UI only
     review_required: bool
     escalation_needed: bool
+    clarification_pending: bool = False  # Feature 004: this reply is a follow-up question
     escalation_summary: dict
     issue_type: str | None = None
     route: str = "customer_issue"  # greeting | general_knowledge | customer_issue | hybrid
@@ -125,6 +126,7 @@ async def handle_support_request(
         confidence = float(result.get("confidence_score", 0.0))
         review_required = bool(result.get("review_required", False))
         escalation_needed = bool(result.get("escalation_needed", False))
+        clarification_pending = bool(result.get("clarification_pending", False))
         draft = result.get("draft_response", "")
         final = result.get("final_response", "")
 
@@ -133,12 +135,14 @@ async def handle_support_request(
         if review_required and not escalation_needed:
             final = _REVIEW_HOLD_AR if lang == "ar" else _REVIEW_HOLD_EN
 
-        # Persist this turn for session memory
+        # Persist this turn for session memory. Tag clarification asks so later
+        # turns can count attempts (Feature 004).
         if request.session_id:
             await append_conversation_turn(
                 session_id=request.session_id,
                 user_message=request.query,
                 assistant_message=final,
+                assistant_metadata={"clarification": True} if clarification_pending else None,
             )
 
         logger.info(
@@ -156,6 +160,7 @@ async def handle_support_request(
             confidence_label=get_confidence_label(confidence),
             review_required=review_required,
             escalation_needed=escalation_needed,
+            clarification_pending=clarification_pending,
             escalation_summary=result.get("escalation_summary", {}),
             issue_type=result.get("issue_type"),
             route=result.get("route", "customer_issue"),

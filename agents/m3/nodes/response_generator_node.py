@@ -209,7 +209,12 @@ async def generate_response(state: M3State) -> dict:
     # ── 3. Build prompt data ───────────────────────────────────────
     customer_message: str = state.get("issue_description", "") or ""
     rag_context: str = state.get("rag_context", "") or ""
-    prompt_data = _build_prompt_data(ctx, lang, completeness, is_recurring, customer_message, rag_context)
+    # Feature 005: the conversation transcript keeps issue-path replies coherent
+    # with earlier turns (e.g. the customer's name) without inventing anything.
+    conversation_history = _format_conversation_history(state.get("chat_history"))
+    prompt_data = _build_prompt_data(
+        ctx, lang, completeness, is_recurring, customer_message, rag_context, conversation_history
+    )
 
     # ── 4. Generate response ───────────────────────────────────────
     # Fix 6: pure knowledge answers are already grounded by Mini-RAG — this step
@@ -255,6 +260,26 @@ async def generate_response(state: M3State) -> dict:
 
 # ── Helpers ─────────────────────────────────────────────────────────
 
+def _format_conversation_history(chat_history: list[dict] | None, max_turns: int = 12) -> str:
+    """Format the recent transcript as 'role: text' lines (oldest first).
+
+    Returns "" when there is no history so the prompt is unchanged from before
+    Feature 005 (graceful, single-turn behavior preserved).
+    """
+    if not chat_history:
+        return ""
+    recent = chat_history[-max_turns:]
+    lines: list[str] = []
+    for turn in recent:
+        role = turn.get("role", "user")
+        content = (turn.get("content", "") or "").strip().replace("\n", " ")
+        if len(content) > 500:
+            content = content[:500] + "…"
+        if content:
+            lines.append(f"{role}: {content}")
+    return "\n".join(lines)
+
+
 def _build_prompt_data(
     ctx: dict,
     lang: str,
@@ -262,6 +287,7 @@ def _build_prompt_data(
     is_recurring: bool,
     customer_message: str = "",
     rag_context: str = "",
+    conversation_history: str = "",
 ) -> str:
     """Serialize context into a human-readable prompt block."""
     lines: list[str] = []
@@ -271,6 +297,11 @@ def _build_prompt_data(
     if is_recurring:
         lines.append("NOTE: This is a RECURRING issue — append the escalation message.")
     lines.append("")
+
+    if conversation_history:
+        lines.append("## Recent conversation (for context — recall facts the customer already stated, e.g. their name; never invent)")
+        lines.append(conversation_history)
+        lines.append("")
 
     if customer_message:
         lines.append(f"Customer's original message: {customer_message}")

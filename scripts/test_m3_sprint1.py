@@ -60,10 +60,9 @@ async def run_tests() -> bool:
             "none",
         ),
         (
-            "No identifier at all — must escalate",
-            "\u0639\u0627\u064a\u0632 \u0623\u0639\u0631\u0641 "
-            "\u062d\u0627\u0644\u0629 \u0637\u0644\u0628\u064a \u0645\u0646 \u0641\u0636\u0644\u0643",
-            None,
+            "Non-existent reference -- must escalate",
+            "what is the status of DEL-999?",
+            {"type": "order_id", "value": "DEL-999"},
             "none",
         ),
     ]

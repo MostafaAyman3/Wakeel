@@ -38,8 +38,8 @@ function EvidenceCard({
 }) {
   return (
     <div
-      className={`rounded-card border bg-paper p-4 transition ${
-        found ? "border-line" : "border-dashed border-line/70"
+      className={`rounded-card border bg-midnight p-4 transition ${
+        found ? "border-slate" : "border-dashed border-slate/70"
       }`}
     >
       <div className="mb-2 flex items-center justify-between">
@@ -73,7 +73,7 @@ export default function TransparencyPanel({ data, missingFields }: Props) {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-display text-sm font-semibold uppercase tracking-[0.12em] text-petrol-deep">
+        <h3 className="font-display text-sm font-semibold uppercase tracking-[0.12em] text-gold">
           Evidence on file
         </h3>
         {missingFields.length > 0 && (

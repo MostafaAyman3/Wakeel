@@ -54,18 +54,33 @@ async def escalate_case(state: M3State) -> dict:
     except Exception as exc:
         logger.warning("escalation_audit_failed", error=str(exc))
 
-    # Final response — escalation message
+    # Final response — escalation message. When a reference was provided but
+    # matched no record, name it so the customer can verify (FR-008).
     lang = state.get("language", "en") or "en"
+    ref_value = (identifier or {}).get("value")
+    no_data = state.get("data_completeness", 0.0) == 0.0
     if lang == "ar":
-        final_response = (
-            "تم إحالة حالتك إلى فريق الدعم المختص. "
-            "سيتواصل معك أحد ممثلي الدعم خلال 24 ساعة للمتابعة."
-        )
+        if ref_value and no_data:
+            final_response = (
+                f"لم نتمكن من العثور على \"{ref_value}\" في نظامنا. "
+                "يرجى التأكد من الرقم، وقد قمنا بتحويل حالتك إلى فريق الدعم للمتابعة."
+            )
+        else:
+            final_response = (
+                "تم إحالة حالتك إلى فريق الدعم المختص. "
+                "سيتواصل معك أحد ممثلي الدعم خلال 24 ساعة للمتابعة."
+            )
     else:
-        final_response = (
-            "Your case has been escalated to our support team. "
-            "A support representative will contact you within 24 hours."
-        )
+        if ref_value and no_data:
+            final_response = (
+                f"We couldn't find \"{ref_value}\" in our system. "
+                "Please double-check the reference — we've also routed your case to our support team."
+            )
+        else:
+            final_response = (
+                "Your case has been escalated to our support team. "
+                "A support representative will contact you within 24 hours."
+            )
 
     logger.info(
         "case_escalated",

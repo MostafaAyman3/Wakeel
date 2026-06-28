@@ -20,10 +20,35 @@ logger = get_logger(__name__)
 _FALLBACK_AR = "أهلاً بك! كيف يمكنني مساعدتك اليوم؟"
 _FALLBACK_EN = "Hello! How can I help you today?"
 
+# Recent turns fed into the reply so it can recall earlier facts (Feature 005).
+# load_conversation_history already caps the window at ~10 turns; this is a safety
+# bound on top of that.
+_HISTORY_TURNS = 12
+
 
 def _detect_language(text: str) -> str:
     """Arabic if any char is in the Arabic Unicode range, else English."""
     return "ar" if any("؀" <= c <= "ۿ" for c in text) else "en"
+
+
+def _format_history(chat_history: list[dict] | None) -> str:
+    """Format the recent transcript as 'role: text' lines (oldest first).
+
+    Returns a placeholder line when there is no history so the prompt stays
+    coherent and the model knows nothing was said earlier.
+    """
+    if not chat_history:
+        return "(No earlier conversation in this session.)"
+    recent = chat_history[-_HISTORY_TURNS:]
+    lines: list[str] = []
+    for turn in recent:
+        role = turn.get("role", "user")
+        content = (turn.get("content", "") or "").strip().replace("\n", " ")
+        if len(content) > 500:
+            content = content[:500] + "…"
+        if content:
+            lines.append(f"{role}: {content}")
+    return "\n".join(lines) if lines else "(No earlier conversation in this session.)"
 
 
 async def greet(state: M3State) -> dict:
@@ -34,7 +59,10 @@ async def greet(state: M3State) -> dict:
         lang = _detect_language(message)
 
     lang_name = "Arabic" if lang == "ar" else "English"
-    system_prompt = GREETING_SYSTEM_PROMPT.format(lang=lang, lang_name=lang_name)
+    history_block = _format_history(state.get("chat_history"))
+    system_prompt = GREETING_SYSTEM_PROMPT.format(
+        lang=lang, lang_name=lang_name, history_block=history_block
+    )
 
     reply = ""
     try:

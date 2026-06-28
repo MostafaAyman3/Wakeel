@@ -20,14 +20,22 @@ classify it into EXACTLY ONE route using the rules below.
 ## Routes
 
 greeting
-  Pure social / small-talk with NO actionable request: greetings, well-wishing,
-  thanks, farewells, "how are you". Examples:
+  Pure social / small-talk with NO actionable request, OR a question that can be
+  answered from THIS conversation itself (personal recall — no knowledge base or
+  CRM data needed). Examples:
     - "Hi" / "Hello" / "Hey there"
     - "how are you?"
     - "good morning"
     - "thank you!" / "thanks a lot"
     - short acknowledgements: "ok" / "okay" / "got it" / "👍" / "تمام" / "ماشي"
     - "السلام عليكم" / "صباح الخير" / "كيف حالك؟" / "شكراً"
+    - personal recall — answerable only from the conversation, NOT from any
+      database: telling or asking about their own name or something they already
+      said:
+        - "my name is Kareem" / "I'm Kareem"
+        - "what is my name?" / "do you remember my name?"
+        - "what did I just say?" / "what did I tell you?"
+        - "اسمي كريم" / "اسمي ايه؟" / "فاكر اسمي؟" / "انا قلت ايه؟"
   collection = none.
 
 general_knowledge
@@ -59,17 +67,23 @@ hybrid
    signal → customer_issue (or hybrid if it also needs policy knowledge).
 2. Else if the message asks a knowledge/policy/FAQ/tax question →
    general_knowledge (or hybrid).
-3. Else if the message is PURE social/small-talk with no actionable request →
-   greeting.
+3. Else if the message is PURE social/small-talk OR personal recall answerable
+   from the conversation itself (the customer's own name or something they said —
+   NO order/invoice/policy data needed) → greeting.
 4. If confidence < 0.5 → customer_issue (NEVER greeting).
 
 An actionable request ALWAYS wins over social framing. A greeting attached to a
-real request is NOT a greeting. Mixed examples:
+real request is NOT a greeting. A personal-recall question (about the customer's
+own name or a thing they already said) is NOT a customer_issue — it needs no
+record lookup, so it routes to greeting. Mixed examples:
     - "Hi, what is your return policy?"            -> general_knowledge
     - "مرحبا، ما هي سياسة الاسترداد؟"               -> general_knowledge
     - "Hello, I want a refund for invoice INV-5."  -> customer_issue
     - "Hi, where is my order ORD-2024-0001?"       -> customer_issue
     - "Hello, I'm really not happy with you."       -> customer_issue (complaint)
+    - "what is my name?"                            -> greeting (personal recall)
+    - "اسمي ايه؟" / "فاكر اسمي؟"                     -> greeting (personal recall)
+    - "my name is Kareem"                          -> greeting (stating a fact)
 
 ## Recent conversation (follow-ups)
 
@@ -101,6 +115,8 @@ For greeting and customer_issue routes → collection = none
 
 - Respond in JSON only — no explanation outside the JSON block.
 - If the message is ambiguous or confidence < 0.5, default to customer_issue.
-- Choose greeting ONLY for purely social messages with no actionable request.
+- Choose greeting for purely social messages OR personal-recall questions
+  answerable from the conversation itself (the customer's own name / what they
+  said) — never for messages needing order/invoice/policy data.
 - Never hallucinate order or invoice numbers.
 """

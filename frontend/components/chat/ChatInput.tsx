@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, type KeyboardEvent, useRef, useState } from "react";
+import { SendHorizonal } from "lucide-react";
 
 interface Props {
   onSend: (message: string) => void;
@@ -18,9 +19,7 @@ export function ChatInput({ onSend, disabled, placeholder }: Props) {
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setValue("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -40,7 +39,7 @@ export function ChatInput({ onSend, disabled, placeholder }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-end gap-2 border-t border-line bg-paper px-4 py-3"
+      className="flex items-end gap-2 border-t border-slate bg-surface px-4 py-3"
     >
       <textarea
         ref={textareaRef}
@@ -51,23 +50,16 @@ export function ChatInput({ onSend, disabled, placeholder }: Props) {
         disabled={disabled}
         rows={1}
         placeholder={placeholder ?? "اكتب رسالتك… / Type your message…"}
-        className="flex-1 resize-none rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-sage focus:outline-none focus:ring-1 focus:ring-petrol/50 disabled:opacity-50"
+        className="flex-1 resize-none rounded-xl border border-slate bg-midnight px-3 py-2 text-sm text-ivory placeholder:text-sage focus:border-gold/50 focus:outline-none disabled:opacity-50"
         style={{ minHeight: "40px", maxHeight: "160px" }}
       />
       <button
         type="submit"
         disabled={disabled || !value.trim()}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-petrol text-paper transition hover:bg-petrol-deep disabled:opacity-40"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold text-midnight transition hover:bg-gold-light disabled:opacity-40"
         aria-label="Send"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          className="h-4 w-4"
-        >
-          <path d="M3.105 2.288a.75.75 0 0 0-.826.95l1.83 6.862H13.5a.75.75 0 0 1 0 1.5H4.109l-1.83 6.862a.75.75 0 0 0 .826.95 28.897 28.897 0 0 0 15.293-7.154.75.75 0 0 0 0-1.115A28.897 28.897 0 0 0 3.105 2.288Z" />
-        </svg>
+        <SendHorizonal size={16} />
       </button>
     </form>
   );

@@ -2,45 +2,83 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+
 @layer base {
-  :root {
-    --ink: #15211f;
-    --sand: #ecefec;
+  * {
+    box-sizing: border-box;
   }
-
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
   body {
-    background-color: var(--sand);
-    color: var(--ink);
-    font-family: Inter, system-ui, sans-serif;
-    /* Subtle desk grain so the pale ground isn't flat. */
-    background-image:
-      radial-gradient(circle at 0% 0%, rgba(15, 82, 87, 0.05), transparent 38%),
-      radial-gradient(circle at 100% 0%, rgba(216, 138, 43, 0.05), transparent 34%);
-    background-attachment: fixed;
+    @apply bg-midnight text-ivory font-inter;
+    min-height: 100vh;
+  }
+  [dir="rtl"] body {
+    @apply font-cairo;
   }
 
-  /* Reference codes, confidence values, tracking numbers — set in mono. */
+  /* Reference codes / confidence values — mono */
   .code {
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
     font-feature-settings: "tnum" 1;
     letter-spacing: -0.01em;
   }
 
   ::selection {
-    background: rgba(216, 138, 43, 0.28);
+    background: rgba(245, 158, 11, 0.3);
   }
-
   *:focus-visible {
-    outline: 2px solid #0f5257;
+    outline: 2px solid #f59e0b;
     outline-offset: 2px;
     border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-midnight;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-light;
   }
 }
 
 @layer components {
-  /* Signature: confidence "signal" — 5 stacked segments like signal strength. */
+  /* Gold left border — signature for AI-generated content */
+  .card-gold-border {
+    @apply border-l-2 border-gold pl-4;
+  }
+  [dir="rtl"] .card-gold-border {
+    @apply border-l-0 border-r-2 border-gold pl-0 pr-4;
+  }
+
+  /* Chat bubbles */
+  .bubble-user {
+    @apply bg-gold/10 border border-gold/20 rounded-2xl rounded-br-sm px-4 py-3;
+  }
+  .bubble-agent {
+    @apply bg-surface border border-slate rounded-2xl rounded-bl-sm px-4 py-3 shadow-desk;
+  }
+
+  /* Card + ghost button */
+  .card-base {
+    @apply bg-surface rounded-card border border-slate p-4;
+  }
+  .btn-ghost {
+    @apply rounded-lg px-3 py-1.5 text-ivory/70 transition hover:bg-slate/60 hover:text-ivory;
+  }
+
+  /* Confidence "signal" segment */
   .signal-seg {
-    height: 0.5rem;
     border-radius: 2px;
     transform-origin: bottom;
     transition: background-color 0.2s ease;

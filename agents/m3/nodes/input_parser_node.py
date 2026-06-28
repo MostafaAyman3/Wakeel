@@ -31,10 +31,12 @@ logger = get_logger(__name__)
 
 VALID_IDENTIFIER_TYPES: set[str] = {"order_id", "invoice_id", "customer_id"}
 
+# Require a hyphen or digit right after the prefix so the plain words
+# "order"/"invoice"/"customer" are NOT matched as references (e.g. "ORDER").
 _REGEX_PATTERNS: list[tuple[str, str]] = [
-    ("order_id", r"\b(?:ORD|DEL|TRK)[-A-Z0-9]+\b"),
-    ("invoice_id", r"\bINV[-A-Z0-9]+\b"),
-    ("customer_id", r"\b(?:CUST|CUS)[-A-Z0-9]+\b"),
+    ("order_id", r"\b(?:ORD|DEL|TRK)[-\d][-A-Z0-9]*\b"),
+    ("invoice_id", r"\bINV[-\d][-A-Z0-9]*\b"),
+    ("customer_id", r"\b(?:CUST|CUS)[-\d][-A-Z0-9]*\b"),
 ]
 
 
@@ -65,6 +67,16 @@ def _regex_fallback(text: str) -> dict | None:
         if match:
             return {"type": id_type, "value": match.group(0)}
     return None
+
+
+def _detect_ambiguous_value(text: str) -> str | None:
+    """A bare reference-like value whose type is unknown (Feature 004, FR-011).
+
+    Returns the raw value (e.g. "1567") when the message has a standalone 3+ digit
+    number but no recognizable ORD/INV/CUST prefix, else ``None``.
+    """
+    match = re.search(r"\b\d{3,}\b", text)
+    return match.group(0) if match else None
 
 
 async def parse_input(state: M3State) -> dict:
@@ -117,6 +129,11 @@ async def parse_input(state: M3State) -> dict:
         if (
             result.identifier_type in VALID_IDENTIFIER_TYPES
             and result.identifier_value.strip()
+            # A real reference contains a digit AND a prefix/hyphen (e.g. ORD-…,
+            # INV-0001). Rejects hallucinated words ("order") and bare numbers
+            # ("1567") — the latter fall through to ambiguous-type clarification.
+            and any(ch.isdigit() for ch in result.identifier_value)
+            and any(c.isalpha() or c == "-" for c in result.identifier_value)
         ):
             identifier = {
                 "type": result.identifier_type,
@@ -131,15 +148,29 @@ async def parse_input(state: M3State) -> dict:
         if identifier:
             logger.info("input_parser_regex_fallback", identifier=identifier)
 
-    # ── 5. No identifier at all -> escalate (graceful degradation) ─
+    # ── 5. No usable identifier -> ask the customer (Feature 004) ─
+    #   Instead of escalating immediately, flag a clarification need. The
+    #   ClarificationNode composes the follow-up question and decides (from
+    #   conversation history) whether to ask again or finally hand off.
     if identifier is None:
-        logger.warning("input_parser_no_identifier", text_preview=raw_text[:80])
+        ambiguous = _detect_ambiguous_value(raw_text)
+        if ambiguous:
+            logger.info("input_parser_ambiguous_value", value=ambiguous)
+            return {
+                "language": language,
+                "customer_identifier": {},
+                "issue_description": issue_description,
+                "clarification_needed": True,
+                "missing_slot": "ambiguous_type",
+                "pending_value": ambiguous,
+            }
+        logger.info("input_parser_missing_identifier", text_preview=raw_text[:80])
         return {
             "language": language,
             "customer_identifier": {},
             "issue_description": issue_description,
-            "escalation_needed": True,
-            "error": "no_identifier_found",
+            "clarification_needed": True,
+            "missing_slot": "identifier",
         }
 
     logger.info(
