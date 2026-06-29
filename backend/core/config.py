@@ -94,6 +94,8 @@ class Settings(BaseSettings):
     m3_repeat_issue_threshold: int = 2
     m3_confidence_review_threshold: float = 0.70
     m3_clarification_max_attempts: int = 2  # Feature 004: ask N times then escalate
+    m3_invalid_id_max_attempts: int = 3     # Feature 006: retry N times then show menu
+    m3_alt_lookup_enabled: bool = False     # Feature 006: enable phone/email alt-lookup menu choice
 
     # Frontend
     next_public_api_base_url: str = "http://localhost:8000"

@@ -37,7 +37,7 @@ async def rag_answer(
         payload["chat_history"] = chat_history
 
     try:
-        async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
+        async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS, verify=False) as client:
             response = await client.post(url, json=payload)
             response.raise_for_status()
             data = response.json()

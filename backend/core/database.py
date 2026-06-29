@@ -27,8 +27,10 @@ from backend.core.config import get_settings
 settings = get_settings()
 
 # asyncpg connection args — statement_cache_size=0 required for Supabase pgBouncer
-# (transaction mode doesn't support named prepared statements)
-_CONNECT_ARGS = {"statement_cache_size": 0, "command_timeout": 60}
+# (transaction mode doesn't support named prepared statements).
+# timeout=10 caps the initial TCP connect attempt so a paused/unreachable DB
+# fails fast (seconds) instead of waiting for the OS socket timeout (~42 s on Windows).
+_CONNECT_ARGS = {"statement_cache_size": 0, "command_timeout": 60, "timeout": 10}
 
 # Read-write engine — used by backend services and M3
 engine = create_async_engine(

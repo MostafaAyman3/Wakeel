@@ -1,13 +1,15 @@
 """
 M3 Customer Support Agent — LangGraph StateGraph.
 
-Unified Support Chatbot flow (Sprint 4 + Unified Router):
+Unified Support Chatbot flow (Sprint 4 + Unified Router + Feature 006):
 
   START → intent_router
     ├─ general_knowledge → rag_node → response_generator → human_review_gate → [end | escalation_node]
     ├─ customer_issue    → input_parser → data_fetcher → completeness_check
-    │                      → [escalate → response_generator | classify → issue_classifier → context_builder → response_generator]
-    │                      → human_review_gate → [end | escalation_node]
+    │                      → invalid_id_node (not-found + identifier present) → END   [Feature 006]
+    │                      → response_generator (escalate/no-data, no identifier) → human_review_gate
+    │                      → issue_classifier → context_builder → response_generator → human_review_gate
+    │                      → [end | escalation_node]
     └─ hybrid            → rag_node → input_parser → data_fetcher → completeness_check → … (same as customer_issue)
 
 Blueprint reference: section 3.4 — Agent Workflow.
@@ -30,6 +32,7 @@ from agents.m3.nodes.response_generator_node import generate_response
 from agents.m3.nodes.human_review_node import human_review_gate
 from agents.m3.nodes.escalation_node import escalate_case
 from agents.m3.nodes.clarification_node import clarify
+from agents.m3.nodes.invalid_id_node import handle_invalid_id
 
 
 # ── Routing helpers ───────────────────────────────────────────────────────────
@@ -60,6 +63,17 @@ def _route_after_parse(state: M3State) -> str:
 def _route_after_clarify(state: M3State) -> str:
     """After clarification_node: escalate (attempts spent) or end the turn (asked)."""
     return "escalate" if state.get("escalation_needed", False) else "end"
+
+
+def _completeness_router(state: M3State) -> str:
+    """After completeness_check: route not-found-with-ID to invalid_id_node, else normal path."""
+    if state.get("data_completeness", 1.0) == 0.0:
+        identifier = state.get("customer_identifier") or {}
+        if identifier.get("type") and identifier.get("value"):
+            return "invalid_id"
+    if state.get("escalation_needed", False):
+        return "escalate"
+    return "classify"
 
 
 def _escalation_router(state: M3State) -> str:
@@ -94,6 +108,7 @@ def build_support_graph():
     graph.add_node("human_review_gate",   human_review_gate)
     graph.add_node("escalation_node",     escalate_case)
     graph.add_node("clarification_node",  clarify)              # Feature 004
+    graph.add_node("invalid_id_node",     handle_invalid_id)   # Feature 006
 
     # ── Entry: intent router ──────────────────────────────────────────
     graph.add_edge(START, "intent_router")
@@ -130,9 +145,14 @@ def build_support_graph():
     graph.add_edge("data_fetcher",           "completeness_check")
     graph.add_conditional_edges(
         "completeness_check",
-        _escalation_router,
-        {"classify": "issue_classifier", "escalate": "response_generator"},
+        _completeness_router,
+        {
+            "invalid_id": "invalid_id_node",
+            "escalate": "response_generator",
+            "classify": "issue_classifier",
+        },
     )
+    graph.add_edge("invalid_id_node",        END)              # Feature 006: turn ends here
     graph.add_edge("issue_classifier",       "context_builder")
     graph.add_edge("context_builder",        "response_generator")
 

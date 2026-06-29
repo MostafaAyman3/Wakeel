@@ -31,6 +31,12 @@ logger = get_logger(__name__)
 
 VALID_IDENTIFIER_TYPES: set[str] = {"order_id", "invoice_id", "customer_id"}
 
+# Feature 006: intent words that mean "I want a human agent" (used after the escalation menu)
+_HUMAN_AGENT_INTENTS: frozenset[str] = frozenset({
+    "human", "agent", "representative", "person", "operator", "staff",
+    "موظف", "خدمة العملاء", "مندوب", "شخص", "2",
+})
+
 # Require a hyphen or digit right after the prefix so the plain words
 # "order"/"invoice"/"customer" are NOT matched as references (e.g. "ORDER").
 _REGEX_PATTERNS: list[tuple[str, str]] = [
@@ -93,6 +99,29 @@ async def parse_input(state: M3State) -> dict:
     # ── 1. Language detection ─────────────────────────────────────
     if not language or language == "auto":
         language = detect_language(raw_text)
+
+    # ── Feature 006 pre-check: menu-choice detection ──────────────
+    # When the previous assistant turn was the escalation menu, detect if the
+    # customer is requesting a human agent so we can route to escalation_node
+    # with full context instead of re-entering the identifier extraction path.
+    chat_history: list = state.get("chat_history") or []
+    if chat_history:
+        last_assistant = next(
+            (t for t in reversed(chat_history) if isinstance(t, dict) and t.get("role") == "assistant"),
+            None,
+        )
+        if last_assistant and (last_assistant.get("metadata") or {}).get("invalid_id_menu"):
+            text_lower = raw_text.lower().strip()
+            if any(intent in text_lower for intent in _HUMAN_AGENT_INTENTS):
+                logger.info("input_parser_menu_choice_human", text_preview=raw_text[:80])
+                return {
+                    "language": language,
+                    "escalation_needed": True,
+                    "issue_description": raw_text,
+                    # Clear stale identifier so _completeness_router routes to "escalate",
+                    # not back to "invalid_id" (Feature 006).
+                    "customer_identifier": {},
+                }
 
     # ── 2. Trust a pre-supplied identifier from the API, if valid ─
     if (

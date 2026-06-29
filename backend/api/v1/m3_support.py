@@ -73,6 +73,8 @@ class SupportResponse(BaseModel):
     review_required: bool
     escalation_needed: bool
     clarification_pending: bool = False  # Feature 004: this reply is a follow-up question
+    invalid_id_pending: bool = False     # Feature 006: this reply is a retry or escalation menu
+    invalid_id_menu_shown: bool = False  # Feature 006: this reply is the 3-choice escalation menu
     escalation_summary: dict
     issue_type: str | None = None
     route: str = "customer_issue"  # greeting | general_knowledge | customer_issue | hybrid
@@ -127,6 +129,8 @@ async def handle_support_request(
         review_required = bool(result.get("review_required", False))
         escalation_needed = bool(result.get("escalation_needed", False))
         clarification_pending = bool(result.get("clarification_pending", False))
+        invalid_id_pending = bool(result.get("invalid_id_pending", False))
+        invalid_id_menu_shown = bool(result.get("invalid_id_menu_shown", False))
         draft = result.get("draft_response", "")
         final = result.get("final_response", "")
 
@@ -135,14 +139,21 @@ async def handle_support_request(
         if review_required and not escalation_needed:
             final = _REVIEW_HOLD_AR if lang == "ar" else _REVIEW_HOLD_EN
 
-        # Persist this turn for session memory. Tag clarification asks so later
-        # turns can count attempts (Feature 004).
+        # Persist this turn for session memory. Tag clarification/invalid-id turns
+        # so later turns can count streak attempts (Features 004 & 006).
         if request.session_id:
+            metadata: dict = {}
+            if clarification_pending:
+                metadata["clarification"] = True
+            if invalid_id_pending:
+                metadata["invalid_id"] = True
+            if invalid_id_menu_shown:
+                metadata["invalid_id_menu"] = True
             await append_conversation_turn(
                 session_id=request.session_id,
                 user_message=request.query,
                 assistant_message=final,
-                assistant_metadata={"clarification": True} if clarification_pending else None,
+                assistant_metadata=metadata or None,
             )
 
         logger.info(
@@ -161,6 +172,8 @@ async def handle_support_request(
             review_required=review_required,
             escalation_needed=escalation_needed,
             clarification_pending=clarification_pending,
+            invalid_id_pending=invalid_id_pending,
+            invalid_id_menu_shown=invalid_id_menu_shown,
             escalation_summary=result.get("escalation_summary", {}),
             issue_type=result.get("issue_type"),
             route=result.get("route", "customer_issue"),

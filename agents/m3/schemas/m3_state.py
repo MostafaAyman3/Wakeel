@@ -60,6 +60,12 @@ class M3State(TypedDict, total=False):
     pending_value: Optional[str]        # raw value awaiting a type (ambiguous_type)
     clarification_attempts: int         # asks already made this conversation (from chat_history)
 
+    # ── Invalid-ID Retry (Feature 006 — InvalidIdNode) ────────────
+    invalid_id_attempts: int            # consecutive not-found count (derived from chat_history)
+    invalid_id_pending: bool            # this turn is a retry message or escalation menu
+    invalid_id_menu_shown: bool         # this turn is the 3-choice escalation menu
+    alt_lookup_choice: Optional[str]    # phone/email value the customer provides for alt lookup
+
     # ── Classification (Sprint 2 — IssueClassifierNode) ───────────
     issue_type: IssueType | None   # None until Sprint 2
     issue_priority: Literal["High", "Medium", "Low"]  # Priority level
@@ -123,6 +129,11 @@ def build_initial_state(
         "missing_slot": None,
         "pending_value": None,
         "clarification_attempts": 0,
+        # Invalid-ID Retry (Feature 006)
+        "invalid_id_attempts": 0,
+        "invalid_id_pending": False,
+        "invalid_id_menu_shown": False,
+        "alt_lookup_choice": None,
         "issue_type": None,
         "issue_priority": "Medium",
         "context": {},
