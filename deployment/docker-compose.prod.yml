@@ -1,0 +1,109 @@
+# Wakeel — production stack (single host, nginx in front).
+#
+# Run from the repository root:
+#   docker compose -f deployment/docker-compose.prod.yml up -d --build
+#
+# Required on the host:
+#   - .env at the repository root (secrets: Supabase URLs, OpenAI key, JWT secret)
+#   - PUBLIC_BASE_URL / PUBLIC_WS_BASE_URL exported or set in .env,
+#     e.g. PUBLIC_BASE_URL=https://wakeel.example.com
+#
+# Only nginx publishes host ports; backend/frontend/mini-rag stay internal.
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mini-rag:
+    build:
+      context: ../MIni-RAG-APP-V1
+    restart: unless-stopped
+    env_file:
+      - path: ../MIni-RAG-APP-V1/src/.env
+        required: false
+      - path: ../MIni-RAG-APP-V1/.env
+        required: false
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('localhost', 8001), 3)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      APP_ENV: production
+      MINI_RAG_BASE_URL: http://mini-rag:8001
+    depends_on:
+      redis:
+        condition: service_healthy
+      mini-rag:
+        condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ../frontend
+      target: runner
+      args:
+        # Baked into the client bundle: the browser calls /api on the public
+        # origin and nginx routes it to the backend.
+        NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost}
+        NEXT_PUBLIC_WS_BASE_URL: ${PUBLIC_WS_BASE_URL:-ws://localhost}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  redis_data:
+
+networks:
+  default:
+    name: wakeel_prod_network

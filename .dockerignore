@@ -1,0 +1,28 @@
+# Applies to builds using the repository root as context (backend image).
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Python
+**/__pycache__
+**/*.pyc
+.venv
+venv
+
+# Not needed inside the backend image
+frontend
+MIni-RAG-APP-V1
+n8n
+docs
+specs
+updates
+tests
+deployment
+dummy.webm
+*.md
+
+# Archived / legacy code
+agents/archive
+backend/archive

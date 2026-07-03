@@ -1,0 +1,11 @@
+.env
+.env.*
+**/__pycache__
+**/*.pyc
+cert.pem
+key.pem
+scripts
+LICENSE
+*.md
+*.sql
+src/assets/files
