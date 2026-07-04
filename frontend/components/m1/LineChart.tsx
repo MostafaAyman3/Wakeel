@@ -128,7 +128,16 @@ const LineChart = forwardRef<HTMLDivElement, LineChartProps>(
         },
         series: config.series.map((s, idx) => {
           const color = colors[idx % colors.length];
-          const yData = isEchartsFormat ? s.data : s.data.map((d: any) => d.y);
+          let yData = isEchartsFormat ? s.data : s.data.map((d: any) => d.y);
+          
+          // Sanitize: remove commas and parse to float if string (LLM sometimes formats numbers)
+          yData = yData.map((v: any) => {
+            if (typeof v === "string") {
+              const parsed = parseFloat(v.replace(/,/g, ""));
+              return isNaN(parsed) ? v : parsed;
+            }
+            return v;
+          });
           
           return {
             name: s.name,
