@@ -1,14 +1,16 @@
 "use client";
 
-// Shared app rail — links M1 (Financial Analyst) and M3 (Customer Support).
-// Mirrors the M1 dark/gold identity.
+// Shared app rail — links all three modules (M1, M2, M3).
+// Mirrors the dark/gold Wakeel identity.
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, Headphones } from "lucide-react";
+import { BarChart2, Package, Headphones, Home } from "lucide-react";
 
 const navItems = [
+  { href: "/", icon: Home, titleAr: "الرئيسية", titleEn: "Home", exact: true },
   { href: "/m1", icon: BarChart2, titleAr: "المحلل المالي", titleEn: "Financial Analyst" },
+  { href: "/m2", icon: Package, titleAr: "المشتريات", titleEn: "Procurement" },
   { href: "/m3", icon: Headphones, titleAr: "دعم العملاء", titleEn: "Customer Support" },
 ];
 
@@ -25,8 +27,10 @@ export function Sidebar({ language = "en" }: Props) {
         <span className="font-cairo text-sm font-bold text-midnight">و</span>
       </div>
 
-      {navItems.map(({ href, icon: Icon, titleAr, titleEn }) => {
-        const active = pathname.startsWith(href);
+      {navItems.map(({ href, icon: Icon, titleAr, titleEn, exact }) => {
+        const active = exact
+          ? pathname === href
+          : pathname.startsWith(href);
         const label = language === "ar" ? titleAr : titleEn;
         return (
           <Link

@@ -92,21 +92,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="ERP Agentic AI Platform — M1 Intelligence + M3 Customer Support",
-    docs_url="/docs" if settings.app_env == "development" else None,
-    redoc_url="/redoc" if settings.app_env == "development" else None,
+    description="ERP Agentic AI Platform — M1 Intelligence + M2 Procurement + M3 Customer Support",
+    docs_url="/docs",
+    redoc_url="/redoc",
     lifespan=lifespan,
 )
 
 # Error handling middleware — must be added first (outermost layer)
 app.middleware("http")(error_handler_middleware)
 
-# CORS — restrict to frontend origin in production
+# CORS — allow configured frontend + Vercel preview deployments
+_cors_origins = [settings.frontend_base_url]
+if settings.frontend_base_url != "http://localhost:3000":
+    _cors_origins.append("http://localhost:3000")  # keep local dev working
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_base_url],
+    allow_origins=_cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",  # Vercel preview URLs
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 

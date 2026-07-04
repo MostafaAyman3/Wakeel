@@ -26,8 +26,7 @@ export default function M2Dashboard() {
     setLoadingInventory(true);
     setError(null);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-      const response = await fetch(`${baseUrl}/api/v1/m2/inventory`);
+      const response = await fetch(`/api/v1/m2/inventory`);
       if (!response.ok) throw new Error('Failed to fetch inventory');
       const data: InventoryStatusResponse = await response.json();
       setInventoryData(data);
@@ -50,8 +49,7 @@ export default function M2Dashboard() {
     setAnalyzing(true);
     setError(null);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-      const response = await fetch(`${baseUrl}/api/v1/m2/analyze`, {
+      const response = await fetch(`/api/v1/m2/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ trigger_source: 'manual', language: 'ar-EG' }),
@@ -107,12 +105,8 @@ export default function M2Dashboard() {
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4">
-            <div className="flex">
-              <div className="ml-3">
-                <p className="text-sm text-red-700">حدث خطأ: {error}</p>
-              </div>
-            </div>
+          <div className="rounded-lg border border-danger/40 bg-danger/10 p-4">
+            <p className="text-sm text-danger">حدث خطأ: {error}</p>
           </div>
         )}
 

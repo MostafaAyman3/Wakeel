@@ -1,0 +1,50 @@
+# ============================================================
+# Wakeel — Consolidated Python Requirements (Backend + Agents)
+# For Render deployment: pip install -r requirements.txt
+# ============================================================
+
+# ── Web Framework ────────────────────────────────────────────
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+
+# ── Database (SQLAlchemy + asyncpg for Supabase) ─────────────
+sqlalchemy
+asyncpg
+alembic
+
+# ── Security ─────────────────────────────────────────────────
+python-jose[cryptography]
+passlib[bcrypt]
+
+# ── HTTP Client ──────────────────────────────────────────────
+httpx
+
+# ── LangGraph / LangChain / LLM ─────────────────────────────
+langgraph
+langchain
+langchain-openai
+langsmith
+
+# ── LangGraph Checkpoint Persistence (M2 AsyncPostgresSaver) ─
+psycopg[binary,pool]
+langgraph-checkpoint-postgres
+
+# ── Data Processing ──────────────────────────────────────────
+pandas
+numpy
+
+# ── SQL Validation ───────────────────────────────────────────
+sqlglot
+
+# ── Structured Logging ───────────────────────────────────────
+structlog
+
+# ── RAG / pgvector ───────────────────────────────────────────
+pgvector>=0.3.0,<0.4.0
+pymupdf>=1.24.0,<2.0.0
+
+# ── OpenAI (direct client for STT/TTS) ───────────────────────
+openai

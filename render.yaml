@@ -1,0 +1,52 @@
+# Render Blueprint — one-click deploy for Wakeel Python backend.
+# https://render.com/docs/blueprint-spec
+#
+# Usage:
+#   1. Push this repo to GitHub
+#   2. Go to https://dashboard.render.com/blueprints
+#   3. Click "New Blueprint Instance"
+#   4. Select this repo
+#   5. Fill in environment variables
+#   6. Deploy
+
+services:
+  - type: web
+    name: wakeel-api
+    runtime: python
+    region: frankfurt  # EU region — closest to Supabase EU West
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      # ── Required ─────────────────────────────────────────
+      - key: DATABASE_URL
+        sync: false  # User must set manually (Supabase pooler URL)
+      - key: READONLY_DB_URL
+        sync: false  # User must set manually (Supabase readonly URL)
+      - key: OPENAI_API_KEY
+        sync: false  # User must set manually
+      - key: JWT_SECRET_KEY
+        sync: false  # Must match frontend NEXT_PUBLIC_JWT_SECRET
+
+      # ── Application ─────────────────────────────────────
+      - key: APP_ENV
+        value: production
+      - key: APP_NAME
+        value: Wakeel
+      - key: FRONTEND_BASE_URL
+        sync: false  # Set to your Vercel URL (e.g. https://wakeel.vercel.app)
+
+      # ── Optional (defaults work) ─────────────────────────
+      - key: OPENAI_MODEL_PRIMARY
+        value: gpt-4o
+      - key: OPENAI_MODEL_FAST
+        value: gpt-4o-mini
+      - key: LANGCHAIN_TRACING_V2
+        value: "false"
+      - key: ELEVENLABS_API_KEY
+        value: ""  # Optional — voice falls back to OpenAI TTS
+      - key: N8N_RFQ_WEBHOOK_URL
+        value: ""  # Optional — RFQ sending simulated when empty
+      - key: MINI_RAG_BASE_URL
+        value: ""  # Optional — M3 RAG gracefully degrades
