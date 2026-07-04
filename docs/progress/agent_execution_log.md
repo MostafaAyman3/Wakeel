@@ -878,3 +878,19 @@ Findings (verified against docs.langchain.com, July 2026; installed: langgraph 1
 4. DEFERRED: Command-based router (ergonomics), Send fan-out (plans rarely have independent steps), LangSmith thread-level evals + run metadata (tier/template/date_range) for wrong-year dashboards, BaseStore cross-thread memory.
 5. Deploy note: all 1.x packages require Python 3.10+ — verify Render runtime.
 Result: SUCCESS — research logged; recommendation #1 queued pending live re-test of Step 33/34 fixes
+
+---
+
+## Step 36
+
+Time: 2026-07-05
+Action: Comparison intent now reaches the presentation layer (aligned overlay) + narrative number formatting + chart axis-label wiring
+Reason: Design discussion concluded the live comparison output was "defensible by luck, not by design": the resolver/frame/db-tool all know about the comparison but the chart layer decides purely from data shape, so "قارن الربع الأول والتاني" rendered the identical monthly line as the previous turn. Agreed target (per user discussion): NOT two aggregate bars (5.6% delta = two near-equal bars, low information) but an aligned per-period overlay showing level AND shape. Also from the last screenshot: narrative printed raw floats (1193770.6) next to formatted numbers; BarChart computed but never wired its value-axis label (unused yAxisLabel); LineChart y-axis had no name and axis-name styling was too faint. Full plan: docs/progress/plan_step36_comparison_visual.md. Pre-change state pushed as 1f50b3b.
+Files:
+- agents/m1/nodes/chart_config_node.py — _build_comparison_overlay(): fires only when analysis_frame has BOTH date_range and comparison_range (start+end parseable), a time column parses as ISO dates, and each range bucket has ≥2 rows; renders grouped bars, one series per period (named Q1-2024/Q2-2024 via _period_label), x = aligned slots (شهر 1..n / Month 1..n), values via to_float, shorter bucket padded with None; output_format forced to bar_chart (alert path syncs alert_data_format); 1-row-per-period comparisons and unparseable/overlapping ranges decline to existing paths
+- agents/prompts/narrative_generator.py — narratives must format ALL numbers with thousands separators, max one decimal, including inside parentheses
+- frontend/components/m1/BarChart.tsx — value-axis name wired (was computed, never used) with localized font
+- frontend/components/m1/LineChart.tsx — y-axis name wired, axis-name styling brightened (#94A3B8, 11px), dead useEffect/useState imports removed
+Self-review verdicts recorded: comparison-knowledge scatter fixed this step; documented-not-fixed: MetricCard token over-matching ("day" matches 0_30_days — impact ~0 since aging renders as table), lexical sort of non-quarter period labels (M10 < M5), pinned method="function_calling" queued for json_schema migration (Step 35 research)
+Verification: suite extended (overlay fired with coerced values + period names + ar slots; no-frame regression stays monthly line; aggregated 2-row path unaffected; overlapping ranges fall back) — 82/82 PASSED; both graphs build; npm run build ✓ (10 routes)
+Result: SUCCESS — pushed after verification

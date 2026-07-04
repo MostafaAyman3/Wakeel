@@ -102,6 +102,10 @@ const BarChart = forwardRef<HTMLDivElement, BarChartProps>(
         },
         xAxis: {
           type: "value",
+          name: yAxisLabel,
+          nameLocation: "center" as const,
+          nameGap: 28,
+          nameTextStyle: { color: "#94A3B8", fontSize: 11, fontFamily: isAr ? "Cairo" : "Inter" },
           axisLabel: {
             color: "#94A3B8",
             fontSize: 10,

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { forwardRef, useMemo, useRef, useEffect, useState } from "react";
+import React, { forwardRef, useMemo, useRef } from "react";
 import ReactECharts from "echarts-for-react";
 import * as echarts from "echarts";
 import type { ChartConfig } from "@/types/m1";
@@ -106,12 +106,14 @@ const LineChart = forwardRef<HTMLDivElement, LineChartProps>(
           axisLine: { lineStyle: { color: "#334155" } },
           axisTick: { show: false },
           name: xAxisLabel,
-          nameTextStyle: { color: "#64748B", fontSize: 10, fontFamily: isAr ? "Cairo" : "Inter" },
+          nameTextStyle: { color: "#94A3B8", fontSize: 11, fontFamily: isAr ? "Cairo" : "Inter" },
           nameLocation: "center",
           nameGap: xData.length > 6 ? 45 : 30,
         },
         yAxis: {
           type: "value",
+          name: yAxisLabel,
+          nameTextStyle: { color: "#94A3B8", fontSize: 11, fontFamily: isAr ? "Cairo" : "Inter" },
           axisLabel: {
             color: "#94A3B8",
             fontSize: 10,

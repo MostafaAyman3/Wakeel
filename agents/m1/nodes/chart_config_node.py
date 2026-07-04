@@ -183,6 +183,109 @@ def _humanize_x_value(value, x_col: str) -> str:
     return raw
 
 
+_ISO_DAY_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})")
+
+_QUARTER_BY_START_MONTH = {1: "Q1", 4: "Q2", 7: "Q3", 10: "Q4"}
+
+
+def _iso_day(value) -> str | None:
+    """Normalize a value to YYYY-MM-DD, or None if it isn't a date."""
+    match = _ISO_DAY_RE.match(str(value)) if value is not None else None
+    return match.group(0) if match else None
+
+
+def _period_label(rng: dict) -> str:
+    """Human label for a {start, end} range: Q2-2024, M5-2024."""
+    day = _iso_day(rng.get("start")) or ""
+    year, month = day[:4], int(day[5:7] or 0)
+    quarter = _QUARTER_BY_START_MONTH.get(month)
+    return f"{quarter}-{year}" if quarter else f"M{month}-{year}"
+
+
+def _build_comparison_overlay(
+    rows: list[dict], frame: dict, language: str
+) -> dict | None:
+    """Aligned overlay for period comparisons — one series per period.
+
+    Fires only when the analysis frame carries BOTH date_range and
+    comparison_range and the rows are a parseable time series with ≥2 rows
+    falling inside EACH range. Two near-equal aggregate bars hide the story;
+    aligning the periods side by side shows level AND shape at once.
+    """
+    base_rng = frame.get("date_range") or {}
+    comp_rng = frame.get("comparison_range") or {}
+    bounds = []
+    for rng in (base_rng, comp_rng):
+        start = _iso_day(rng.get("start")) if isinstance(rng, dict) else None
+        end = _iso_day(rng.get("end")) if isinstance(rng, dict) else None
+        if not (start and end):
+            return None
+        bounds.append((start, end))
+
+    columns = _visible_columns(rows) if rows else []
+    time_col = next(
+        (
+            c for c in columns
+            if _is_time_column(c)
+            and all(_iso_day(r.get(c)) for r in rows if r.get(c) is not None)
+        ),
+        None,
+    )
+    if not time_col:
+        return None
+    y_col = next(
+        (
+            c for c in columns
+            if c != time_col and not _is_id_column(c) and is_numeric_column(rows, c)
+        ),
+        None,
+    )
+    if not y_col:
+        return None
+
+    buckets: list[list[dict]] = [[], []]
+    for row in rows:
+        day = _iso_day(row.get(time_col))
+        if not day:
+            continue
+        for idx, (start, end) in enumerate(bounds):
+            if start <= day <= end:
+                buckets[idx].append(row)
+                break
+    if any(len(bucket) < 2 for bucket in buckets):
+        return None  # 1-row-per-period comparisons render as plain bars
+
+    for bucket in buckets:
+        bucket.sort(key=lambda r: _iso_day(r.get(time_col)) or "")
+
+    length = max(len(b) for b in buckets)
+    slot = "شهر" if language == "ar" else "Month"
+    x_data = [f"{slot} {i + 1}" for i in range(length)]
+
+    series = []
+    for rng, bucket in zip((base_rng, comp_rng), buckets):
+        data = [to_float(row.get(y_col)) for row in bucket]
+        data += [None] * (length - len(data))
+        series.append(
+            {
+                "name": _period_label(rng),
+                "type": "bar",
+                "data": data,
+                "smooth": False,
+            }
+        )
+
+    return {
+        "type": "bar",
+        "chart_type": "bar",
+        "xAxis": {"data": x_data},
+        "series": series,
+        "x_axis": {"field": time_col, "label": _label(time_col, language)},
+        "y_axis": {"field": y_col, "label": _label(y_col, language)},
+        "title": "",
+    }
+
+
 def build_chart_config(
     chart_format: str,
     rows: list[dict],
@@ -273,8 +376,33 @@ def chart_config_node(state: M1State) -> dict:
         result["chart_config"] = None
         return result
 
+    language = state.get("language", "en")
+
+    # Comparison intent reaches the presentation layer here: when the frame
+    # carries both periods and the data spans them, render an aligned overlay
+    # instead of an undifferentiated timeline.
+    overlay = _build_comparison_overlay(
+        filtered, state.get("analysis_frame", {}) or {}, language
+    )
+    if overlay:
+        logger.info(
+            "chart_config: comparison overlay rendered",
+            series=[s["name"] for s in overlay["series"]],
+            points=len(overlay["xAxis"]["data"]),
+        )
+        result["chart_config"] = overlay
+        if is_alert:
+            if extracted_params.get("alert_data_format") != "bar_chart":
+                result["extracted_params"] = {
+                    **extracted_params,
+                    "alert_data_format": "bar_chart",
+                }
+        elif output_format != "bar_chart":
+            result["output_format"] = "bar_chart"
+        return result
+
     config, effective_format = build_chart_config(
-        chart_format, filtered, hints, language=state.get("language", "en")
+        chart_format, filtered, hints, language=language
     )
     result["chart_config"] = config
 
