@@ -16,6 +16,7 @@ from __future__ import annotations
 import structlog
 
 from agents.m1.schemas.m1_state import M1State
+from agents.m1.utils.numeric import to_float as _to_float
 
 logger = structlog.get_logger(__name__)
 
@@ -90,9 +91,9 @@ async def validate_and_enrich(state: M1State) -> dict:
     if template_id == "T6" and raw_data:
         anomaly_detected = True
         # Find the worst anomaly in the results
-        worst_row = max(raw_data, key=lambda r: float(r.get("amount", 0)))
-        avg_amount = float(worst_row.get("avg_amount", 1))
-        actual_amount = float(worst_row.get("amount", 0))
+        worst_row = max(raw_data, key=lambda r: _to_float(r.get("amount")) or 0.0)
+        avg_amount = _to_float(worst_row.get("avg_amount")) or 1.0
+        actual_amount = _to_float(worst_row.get("amount")) or 0.0
         category = worst_row.get("category", "Unknown")
         pct_increase = ((actual_amount - avg_amount) / avg_amount * 100) if avg_amount > 0 else 0
 
@@ -155,14 +156,18 @@ def _scan_for_generic_anomalies(
     if not raw_data:
         return False, {}
 
-    # Collect numeric columns
+    # Collect numeric columns — a column qualifies only if every non-null
+    # value converts to a number (mixed columns like ["Q1", 1783555] are skipped).
     numeric_cols: list[str] = []
-    for key, val in raw_data[0].items():
-        if isinstance(val, (int, float)):
+    for key in raw_data[0]:
+        non_null = [row.get(key) for row in raw_data if row.get(key) is not None]
+        if non_null and all(_to_float(v) is not None for v in non_null):
             numeric_cols.append(key)
 
     for col in numeric_cols:
-        values = [float(row.get(col, 0)) for row in raw_data if row.get(col) is not None]
+        values = [
+            f for f in (_to_float(row.get(col)) for row in raw_data) if f is not None
+        ]
         if len(values) < _MIN_ROWS_FOR_ANOMALY:
             continue
 

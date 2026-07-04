@@ -21,24 +21,25 @@ export function isArabic(text: string): boolean {
 }
 
 /**
- * Format a number with locale-aware separators.
- * Arabic: ١٬٢٣٤٬٥٦٧  |  English: 1,234,567
+ * Format a number with thousands separators.
+ *
+ * Latin digits in BOTH languages (1,234,567): chart axes, tooltips, tables
+ * and KPI cards must all read as one system — mixing ٦٣٨٫٤ next to 1.2M
+ * on the same screen breaks that. Labels stay localized; digits don't.
  */
 export function formatNumber(
   num: number | string | null | undefined,
-  language: string = "en",
+  _language: string = "en",
 ): string {
   if (num == null) return "—";
-  const value = typeof num === "string" ? parseFloat(num) : num;
+  const value = typeof num === "string" ? parseFloat(num.replace(/,/g, "")) : num;
   if (isNaN(value)) return String(num);
-
-  const locale = language === "ar" ? "ar-EG" : "en-US";
 
   // Format with appropriate decimal places
   if (Number.isInteger(value)) {
-    return value.toLocaleString(locale);
+    return value.toLocaleString("en-US");
   }
-  return value.toLocaleString(locale, {
+  return value.toLocaleString("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });

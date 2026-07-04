@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from agents.m1.schemas.m1_state import M1State
+from agents.m1.utils.numeric import is_numeric_column, to_float
 
 
 async def aggregate_results(state: M1State) -> dict:
@@ -33,16 +34,22 @@ async def aggregate_results(state: M1State) -> dict:
                     
                 keys = list(rows[0].keys())
                 l_col = keys[0]
-                # Find first numeric column to be the value
-                v_col = next((c for c in keys[1:] if isinstance(rows[0][c], (int, float))), keys[-1])
-                
+                # Find first numeric column to be the value — via safe coercion
+                # so Decimal and formatted strings ("1,783,555") still count.
+                v_col = next(
+                    (c for c in keys[1:] if is_numeric_column(rows, c)),
+                    keys[-1],
+                )
+
                 for row in rows:
                     x_val = row.get(l_col)
                     if x_val is None: continue
-                    
+
                     if x_val not in pivot_map:
                         pivot_map[x_val] = {ref_label_col: x_val}
-                    pivot_map[x_val][legend] = row.get(v_col)
+                    value = row.get(v_col)
+                    coerced = to_float(value)
+                    pivot_map[x_val][legend] = coerced if coerced is not None else value
                     
             elif result.get("status") not in {"deferred_to_aggregator"}:
                 failures.append(f"{step_id}: {result.get('error_category', 'failed')}")

@@ -15,6 +15,7 @@ import structlog
 from agents.shared.llm_client import llm_fast
 from agents.m1.schemas.m1_state import M1State
 from agents.m1.tools.query_gateway import execute_readonly_query
+from agents.m1.utils.numeric import is_numeric_column, to_float
 
 logger = structlog.get_logger(__name__)
 
@@ -54,6 +55,18 @@ Extracted Params (from intent classifier): {params}
 
 Return the matching template ID (e.g., "T1") and map the parameters.
 If a parameter is not mentioned, return None. For dates, use the format YYYY-MM-DD.
+
+Date rules (critical):
+- If the user names a year (e.g. "2024"), use that FULL year:
+  start_date=YYYY-01-01, end_date=YYYY-12-31. NEVER substitute the current
+  year for a year the user explicitly named.
+- If no period is mentioned at all, default to the current year.
+
+Template preference:
+- "أداء المبيعات" / "sales performance" / trend over a period longer than one
+  month → prefer T2 (time series) so the user sees the evolution, not T1's
+  single total. Months without data simply won't appear in the result — that
+  is correct behavior, do not widen the range to compensate.
 """
 
 TEMPLATES = {
@@ -170,6 +183,45 @@ TEMPLATES = {
     """)
 }
 
+# ── Per-template visualization hints ──────────────────────────────────────────
+# Templates have a known result shape, so the ideal rendering is known upfront.
+# Stored as plain dicts (checkpoint-serializable); coerced downstream.
+TEMPLATE_VIZ_HINTS: dict[str, dict] = {
+    "T1":  {"chart_type": "metric_card"},
+    "T2":  {"chart_type": "line_chart", "x_axis": "period", "y_axis": "revenue"},
+    "T3":  {"chart_type": "metric_card"},
+    "T4":  {"chart_type": "table"},
+    "T5":  {"chart_type": "metric_card"},
+    "T6":  {"chart_type": "table"},   # data view shown under the anomaly alert
+    "T7":  {"chart_type": "bar_chart", "x_axis": "name", "y_axis": "total_revenue", "sort_by": "total_revenue"},
+    "T8":  {"chart_type": "bar_chart", "x_axis": "category", "y_axis": "category_revenue", "sort_by": "category_revenue"},
+    "T9":  {"chart_type": "table"},
+    "T10": {"chart_type": "bar_chart", "x_axis": "name", "y_axis": "total_revenue", "sort_by": "total_revenue"},
+}
+
+# When the same template runs twice (base vs comparison period), the merged
+# result is a pairwise comparison — bars over the period label, always.
+COMPARISON_VIZ_HINTS: dict = {"chart_type": "bar_chart", "x_axis": "period"}
+
+
+def _one_row_per_period(rows: list[dict], label: str) -> list[dict]:
+    """Collapse a template result to a single labeled row for comparison mode.
+
+    Templates like T2 return one row PER MONTH — stamping every row with the
+    same period label would produce duplicate x-axis categories, so multi-row
+    results are aggregated (SUM of numeric columns) into one row per period.
+    """
+    if not rows:
+        return []
+    if len(rows) == 1:
+        return [{**rows[0], "period": label}]
+    aggregated: dict = {"period": label}
+    for col in rows[0]:
+        if col != "period" and is_numeric_column(rows, col):
+            aggregated[col] = sum(to_float(r.get(col)) or 0.0 for r in rows)
+    return [aggregated]
+
+
 async def db_query_tool(state: M1State) -> dict:
     """Executes the exact requested dynamic SQL template on the read-only DB.
 
@@ -279,14 +331,10 @@ async def db_query_tool(state: M1State) -> dict:
                 "result_status": "failed",
             }
 
-        # Merge results with period labels.
-        results = []
-        for row in rows1:
-            row["period"] = base_label
-            results.append(row)
-        for row in rows2:
-            row["period"] = compare_label
-            results.append(row)
+        # Merge results — one aggregated, labeled row per period.
+        results = _one_row_per_period(rows1, base_label) + _one_row_per_period(
+            rows2, compare_label
+        )
 
         try:
             logger.info(
@@ -305,6 +353,7 @@ async def db_query_tool(state: M1State) -> dict:
             "raw_data": results,
             "query_mode": "template",
             "matched_template": tid,
+            "visualization_hints": COMPARISON_VIZ_HINTS,
             "query_artifacts": state.get("query_artifacts", []) + artifacts,
             "extracted_params": {
                 **extracted_params,
@@ -335,6 +384,7 @@ async def db_query_tool(state: M1State) -> dict:
         "raw_data": results,
         "query_mode": "template",
         "matched_template": tid,
+        "visualization_hints": TEMPLATE_VIZ_HINTS.get(tid),
         "query_artifacts": state.get("query_artifacts", []) + [artifact],
         "extracted_params": {
             **extracted_params,

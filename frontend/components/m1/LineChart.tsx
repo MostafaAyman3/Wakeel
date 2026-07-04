@@ -26,10 +26,10 @@ const LineChart = forwardRef<HTMLDivElement, LineChartProps>(
     const isAr = language === "ar";
     const chartRef = useRef<any>(null);
 
-    // Format numbers based on language — locale-aware
+    // Latin digits in both languages — consistent with axes (1.2M) and tables
     const formatValue = (v: number): string => {
       if (typeof v !== "number" || isNaN(v)) return String(v);
-      return v.toLocaleString(isAr ? "ar-EG" : "en-US");
+      return v.toLocaleString("en-US");
     };
 
     const option = useMemo(() => {

@@ -177,7 +177,20 @@ async def execute_plan(state: M1State) -> dict:
             )
             db_budget -= consumed
             rows = template_result.get("raw_data", [])
-            complete, _, _ = _step_result_is_complete(rows, step)
+            # Curated templates are trusted: a non-empty result is complete
+            # even when its columns differ from the planner's GUESS of
+            # expected_columns. Discarding a correct template result over a
+            # column-name mismatch caused redundant NL2SQL re-fetches that
+            # overrode correct data in production.
+            complete, category, _ = _step_result_is_complete(rows, step)
+            if rows and not complete and category == "result_shape_mismatch":
+                logger.info(
+                    "t3_template_shape_mismatch_accepted",
+                    step=step.id,
+                    expected=step.expected_columns,
+                    actual=list(rows[0].keys()),
+                )
+                complete = True
             if complete:
                 tool_results.append(
                     {

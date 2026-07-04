@@ -41,11 +41,21 @@ async def save_context(state: M1State) -> dict:
             ),
         }
 
+    # A failed/empty turn must not poison the conversation context: keep the
+    # last frame that actually produced data so follow-ups ("طب والسنة؟")
+    # resolve against it instead of the dead-end frame.
+    analysis_frame = state.get("analysis_frame", {})
+    if (
+        state.get("result_status") in ("empty", "failed")
+        and state.get("prior_analysis_frame")
+    ):
+        analysis_frame = state["prior_analysis_frame"]
+
     metadata = {
         "schema_version": CONTEXT_SCHEMA_VERSION,
         "assigned_tier": state.get("assigned_tier", ""),
         "domain_intent": state.get("domain_intent", ""),
-        "analysis_frame": state.get("analysis_frame", {}),
+        "analysis_frame": analysis_frame,
         "matched_template": state.get("matched_template", ""),
         "query_mode": state.get("query_mode", "none"),
         "result_summary": {

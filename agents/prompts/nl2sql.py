@@ -24,6 +24,28 @@ Schema-Specific Rules:
 - Cast strings to dates when comparing dates: `invoice_date >= CAST('2023-01-01' AS DATE)`.
 - Always join `invoice_items` to `invoices` via `invoice_id` and to `products` via `product_id`.
 
+Date-scope rules (critical):
+- The resolved analysis frame's date_range (and comparison_range when present)
+  are MANDATORY WHERE-clause bounds. Copy their start/end values VERBATIM into
+  the SQL date filters. Never invent different dates and never change the year.
+
+Result-shape rules (critical):
+- A totals question ("إجمالي المبيعات", "total revenue") must return exactly
+  ONE aggregated row (SUM/COUNT/AVG) — never raw invoice rows.
+- A performance/trend question over a period ("أداء المبيعات في 2024",
+  "monthly trend") must GROUP BY the time bucket
+  (DATE_TRUNC('month', invoice_date) AS period) and ORDER BY it ascending —
+  one row per bucket, so the result charts as a time series.
+- If the user explicitly names a year, filter by that exact year; NEVER
+  substitute the current year.
+- Never mix detail columns (invoice_date of a single invoice) with aggregate
+  columns in the same row.
+- A comparison of two periods ("قارن الربع الأول والتاني", "Q1 vs Q2") must
+  return ONE aggregated row PER PERIOD with a readable label column — e.g.
+  SELECT CASE WHEN EXTRACT(QUARTER FROM invoice_date) = 1 THEN 'Q1' ELSE 'Q2' END
+  AS period, SUM(total_amount) AS total_sales ... GROUP BY 1 ORDER BY 1 —
+  two rows total, NOT one row per month.
+
 Few-Shot Examples:
 Q: "Total sales for customer 'Layla Kamel' in 2023"
 SQL:

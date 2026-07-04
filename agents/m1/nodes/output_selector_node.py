@@ -8,13 +8,19 @@ Determines the best output format based on TWO factors:
 Blueprint reference: section 2.8 — Adaptive Output Selector
 Sprint plan: M1_Sprints.md Sprint 5
 
+Division of labor (post chart-flow unification):
+    This node decides WHAT to render (output_format) and honors agent
+    visualization_hints for that choice. The downstream chart_config node
+    is the single builder of the final chart_config and may downgrade the
+    format when the data cannot support it.
+
 8 output types:
     direct_text         — single scalar value (1 row, 1 col)
     metric_card         — KPI number with comparison context
     formatted_text_list — small list (1-5 rows, ≤ 3 cols)
     table               — large dataset (> 5 rows or > 12 categorical items)
     bar_chart           — categorical comparison (≤ 12 items)
-    line_chart          — time series data
+    line_chart          — time series data (3+ points)
     narrative           — explanation / analysis / tax reasoning
     alert               — anomaly detected → colored alert card
 """
@@ -25,7 +31,7 @@ from __future__ import annotations
 import structlog
 
 from agents.m1.schemas.m1_state import M1State
-from agents.m1.schemas.analysis_models import VisualizationHints
+from agents.m1.utils.numeric import coerce_hints
 
 logger = structlog.get_logger(__name__)
 
@@ -43,6 +49,11 @@ _TIME_COLUMN_PATTERNS: frozenset[str] = frozenset({
     "date", "period", "month", "year", "quarter", "week", "day",
     "invoice_date", "order_date", "transaction_date", "payment_date",
     "shipped_date", "delivered_date", "created_at",
+})
+
+_VALID_FORMATS: frozenset[str] = frozenset({
+    "direct_text", "metric_card", "formatted_text_list", "table",
+    "bar_chart", "line_chart", "narrative", "alert",
 })
 
 
@@ -81,111 +92,22 @@ def _is_categorical(columns: list[str], raw_data: list[dict]) -> bool:
     return True
 
 
-def _build_chart_config(
-    output_format: str,
-    columns: list[str],
-    raw_data: list[dict],
-    language: str,
-    hints: VisualizationHints | None = None,
-) -> dict | None:
-    """
-    Build a framework-agnostic chart configuration.
-
-    Sprint 6 will convert this to ECharts-specific options.
-    Returns None for non-chart output types.
-    """
-    if output_format not in ("bar_chart", "line_chart"):
-        return None
-
-    if not columns or len(columns) < 2:
-        return None
-
-    x_field = columns[0]
-    y_field = columns[1]
-
-    # Priority 1: Validated Agentic Override
-    if hints:
-        if hints.x_axis and hints.x_axis in columns:
-            x_field = hints.x_axis
-        if hints.y_axis and hints.y_axis in columns:
-            y_field = hints.y_axis
-
-    # Priority 2: Smart Heuristics Fallback (only if not overridden)
-    if not hints or not hints.x_axis or hints.x_axis not in columns:
-        if output_format == "line_chart":
-            time_cols = [c for c in columns if c.lower() in _TIME_COLUMN_PATTERNS or c.lower().endswith(("_date", "_at"))]
-            if time_cols:
-                x_field = time_cols[0]
-        elif output_format == "bar_chart":
-            # Exclude UUIDs
-            valid_cats = [c for c in columns if c.lower() not in ("id", "uuid") and not c.lower().endswith("_id")]
-            if valid_cats:
-                # Find first string column
-                str_cols = []
-                if raw_data:
-                    str_cols = [c for c in valid_cats if isinstance(raw_data[0].get(c), str)]
-                x_field = str_cols[0] if str_cols else valid_cats[0]
-
-    # For y_field fallback, if not overridden, pick first numeric column after x_field
-    if not hints or not hints.y_axis or hints.y_axis not in columns:
-        if len(columns) > 2:
-            for col in columns:
-                if col == x_field:
-                    continue
-                sample_val = raw_data[0].get(col) if raw_data else None
-                if isinstance(sample_val, (int, float)):
-                    y_field = col
-                    break
-        elif len(columns) == 2:
-            y_field = columns[1] if columns[0] == x_field else columns[0]
-
-    chart_type = "line" if output_format == "line_chart" else "bar"
-
-    # Build series from data
-    series_data = []
-    for row in raw_data:
-        series_data.append({
-            "x": row.get(x_field),
-            "y": row.get(y_field),
-        })
-
-    config = {
-        "chart_type": chart_type,
-        "x_axis": {
-            "field": x_field,
-            "label": x_field.replace("_", " ").title(),
-        },
-        "y_axis": {
-            "field": y_field,
-            "label": y_field.replace("_", " ").title(),
-        },
-        "title": "",  # Will be filled by narrative_generator
-        "series": [{
-            "name": y_field.replace("_", " ").title(),
-            "data": series_data,
-        }],
-    }
-
-    return config
-
-
 async def select_output(state: M1State) -> dict:
     """
     OutputSelectorNode: determine the best output format for the response.
 
     Guard Clause: If output_format was already set by an upstream node
-    (e.g. tax_rag_node sets "narrative", invoice_analysis_tool may set a format),
-    preserve that decision and only build chart_config if needed.
+    (e.g. tax_rag_node sets "narrative"), preserve that decision. The
+    downstream chart_config node builds chart_config for whichever format
+    survives.
 
     Args:
         state: Current M1State with raw_data, intent, extracted_params, etc.
 
     Returns:
-        Partial M1State dict: { output_format, chart_config }
+        Partial M1State dict: { output_format }
     """
-    hints = state.get("visualization_hints")
-    if isinstance(hints, dict):
-        hints = VisualizationHints(**hints)
+    hints = coerce_hints(state.get("visualization_hints"))
 
     # ── Guard Clause: preserve upstream output_format ──────────────────────
     existing_format = state.get("output_format")
@@ -194,23 +116,16 @@ async def select_output(state: M1State) -> dict:
             "output_selector: preserving upstream output_format",
             format=existing_format,
         )
-        # Still build chart_config if needed for preserved chart formats
-        raw_data = state.get("raw_data", [])
-        columns = list(raw_data[0].keys()) if raw_data else []
-        language = state.get("language", "en")
-        chart_config = _build_chart_config(existing_format, columns, raw_data, language, hints)
-        return {
-            "output_format": existing_format,
-            "chart_config": chart_config,
-        }
+        return {"output_format": existing_format}
 
     # ── Main selection logic ──────────────────────────────────────────────
     raw_data: list = state.get("raw_data", [])
     intent: str = state.get("intent", "")
-    language: str = state.get("language", "en")
     extracted_params: dict = state.get("extracted_params", {})
     anomaly_detected: bool = state.get("anomaly_detected", False)
     evaluator_hint: str = state.get("result_format_hint", "")
+    if evaluator_hint not in _VALID_FORMATS:
+        evaluator_hint = ""
 
     row_count = len(raw_data)
     columns = list(raw_data[0].keys()) if raw_data else []
@@ -240,7 +155,10 @@ async def select_output(state: M1State) -> dict:
         data_format = "direct_text"
     elif row_count == 1 and col_count <= 3:
         data_format = "metric_card"
-    elif has_time and row_count > 1:
+    elif row_count == 2 and col_count >= 2:
+        # Two rows = a pairwise comparison (Q1 vs Q2) — bars, never a 2-point line
+        data_format = "bar_chart"
+    elif has_time and row_count >= 3:
         data_format = "line_chart"
     elif categorical and row_count <= 12:
         data_format = "bar_chart"
@@ -256,18 +174,16 @@ async def select_output(state: M1State) -> dict:
     # 1. Alert Card — anomaly detected (highest priority, but keep data viz)
     if anomaly_detected:
         selected = "alert"
-    # 2. Template-specific hint
+    # 2. Agent visualization hint — outranks all shape heuristics
+    elif hints and hints.chart_type:
+        selected = hints.chart_type
+    # 3. Template-specific hint
     elif hint:
         selected = hint
     elif evaluator_hint:
         selected = evaluator_hint
     else:
         selected = data_format
-
-    # ── Build chart_config for chart types ─────────────────────────────────
-    # When format is alert, build chart_config for the secondary data format
-    chart_format = data_format if selected == "alert" else selected
-    chart_config = _build_chart_config(chart_format, columns, raw_data, language, hints)
 
     logger.info(
         "output_selector: format selected",
@@ -281,10 +197,7 @@ async def select_output(state: M1State) -> dict:
         anomaly=anomaly_detected,
     )
 
-    result: dict = {
-        "output_format": selected,
-        "chart_config": chart_config,
-    }
+    result: dict = {"output_format": selected}
     # When alert is selected, pass the data format so the renderer
     # can show both the alert AND the data visualization.
     if selected == "alert" and data_format and data_format != "direct_text":
@@ -294,4 +207,3 @@ async def select_output(state: M1State) -> dict:
         }
 
     return result
-

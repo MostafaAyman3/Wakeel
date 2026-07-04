@@ -280,9 +280,18 @@ async def route_intent(state: M1State) -> dict:
     if decision.assigned_tier == "T2" and not any(frame.values()):
         frame = state.get("prior_analysis_frame", {})
 
+    # Unmapped domains fall back by tier: an analytical tier must not be
+    # mislabeled clarification_needed — that skips anomaly detection and
+    # skews the narrative prompt.
+    _TIER_FALLBACK_INTENT = {
+        "T0": "conversation",
+        "T4": "clarification_needed",
+        "T5": "out_of_scope",
+        "T6": "support",
+    }
     legacy_intent = _DOMAIN_TO_LEGACY_INTENT.get(
         decision.domain_intent,
-        "clarification_needed",
+        _TIER_FALLBACK_INTENT.get(decision.assigned_tier, "financial_query"),
     )
     if decision.assigned_tier == "T4":
         legacy_intent = "clarification_needed"

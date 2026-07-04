@@ -16,12 +16,19 @@ interface MetricCardProps {
   language: "ar" | "en";
 }
 
+/* Columns that are context, not KPIs — dates, identifiers, internal fields.
+ * A date rendered as a big gold number ("INVOICE DATE: 2024") is noise. */
+const NON_METRIC_KEY = /(^|_)(id|uuid)$|date|period|_at$|month|year|quarter|week|day/i;
+
 const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
   function MetricCard({ data, language }, ref) {
     if (!data || data.length === 0) return null;
 
     const row = data[0];
-    const entries = Object.entries(row);
+    const allEntries = Object.entries(row).filter(([k]) => !k.startsWith("_"));
+    const metricEntries = allEntries.filter(([k]) => !NON_METRIC_KEY.test(k));
+    // If filtering removed everything, show the original row rather than nothing
+    const entries = metricEntries.length > 0 ? metricEntries : allEntries;
 
     // Single value
     if (entries.length === 1) {

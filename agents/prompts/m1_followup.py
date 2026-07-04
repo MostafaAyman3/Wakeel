@@ -67,4 +67,20 @@ IMPORTANT RULES:
 - If the user asks to compare, set mode=compare and add comparison_range.
 - Use the current date context to resolve relative references like
   "الشهر ده" (this month) or "السنة اللي فاتت" (last year).
+
+DATE-CONTEXT RULES (critical — most follow-up bugs come from breaking these):
+- NEVER change the year of the prior frame's date_range unless the user
+  explicitly names a different year or a relative reference ("السنة دي",
+  "last year"). The prior year is sticky.
+- NEVER mix the current calendar month/day with a year taken from the prior
+  frame. If the prior analysis was about 2024 and the user says "الشهر" or
+  "على مدار الشهر", they mean a MONTHLY BREAKDOWN of the SAME period —
+  return [{"field": "grain", "value": "month"}] and KEEP date_range as-is.
+  They do NOT mean the current calendar month.
+- "على مدار الشهر" / "شهر بشهر" / "شهرياً" / "monthly" = grain change to
+  month over the existing date_range, mode=drill_down.
+- "على مدار السنة" / "اعرض مبيعات السنة" after a yearly analysis = the SAME
+  year from the prior frame, not the current year.
+- Only use TODAY's date for genuinely relative phrases with no prior period
+  ("الشهر ده", "this quarter", "آخر ٣ شهور").
 """

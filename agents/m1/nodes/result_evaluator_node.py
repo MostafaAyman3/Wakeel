@@ -24,7 +24,10 @@ def _format_hint(rows: list[dict[str, Any]]) -> str:
         "date", "period", "month", "quarter", "year", "week",
         "invoice_date", "order_date", "transaction_date",
     }
-    if len(rows) > 1 and any(column.lower() in time_columns for column in columns):
+    if len(rows) == 2 and len(columns) >= 2:
+        # A two-row result is a pairwise comparison — bars, not a 2-point line
+        return "bar_chart"
+    if len(rows) >= 3 and any(column.lower() in time_columns for column in columns):
         return "line_chart"
     if len(rows) <= 12 and len(columns) == 2:
         return "bar_chart"

@@ -793,3 +793,88 @@ Verification (live system, backend restarted to load changes):
 - scripts/test_clarification.py — 18/18 ; scripts/test_m3_sprint1.py — 5/5 ; scripts/test_m3_sprint4.py — 12/12 (no regressions)
 - Confirmed: "my name is Kareem" → "what is my name?" answers "Kareem" (AR "كريم"); never-stated name → no order-number ask, no fabrication; cross-session isolation preserved.
 Result: SUCCESS — Feature 005 COMPLETE
+
+---
+
+## Step 31
+
+Time: 2026-07-04
+Action: Fixed M1 crash + unified the entire chart-rendering flow (backend chart pipeline rewrite)
+Reason: (a) "إيه أداء المبيعات في الربع الثاني مقارنة بالأول؟" crashed with `could not convert string to float: 'Q1'` — validation_enrichment classified columns as numeric from row[0] only, then called float() unguarded. (b) Full flow review found two nodes competing to build chart_config: output_selector built a hints-aware config, then chart_config_node overwrote it with row-count-only heuristics, making visualization_hints dead code end-to-end. T1 never filled hints (no field exists in GeneratedQuery/templates); T3 planner hints died at output_selector validation because the T3 aggregator pivot renames value columns to Arabic legend labels.
+Files:
+- agents/m1/utils/numeric.py — NEW shared helpers: to_float (Decimal/formatted-string/"Q1"-safe), is_numeric_column (all non-null values must coerce), coerce_hints (dict|pydantic|None normalizer)
+- agents/m1/nodes/validation_enrichment_node.py — anomaly scan now uses safe coercion; strict numeric-column qualification; T6 block hardened
+- agents/m1/nodes/chart_config_node.py — REWRITTEN as the single authoritative config builder: honors output_format + visualization_hints (x_axis/y_axis/sort_by), multi-series from all numeric columns (makes Arabic pivot legends chart as 2 lines), safe downgrades (1 row→metric_card, no numeric col→table, 2-point line→bar), chronological sort for time axes, backend-side numeric sanitization, emits both `type` and `chart_type` keys for frontend compat
+- agents/m1/nodes/output_selector_node.py — no longer builds chart_config; new priority ladder: anomaly → agent hints.chart_type → template hint → evaluator hint → shape heuristics; 2 rows = pairwise comparison → bar (never a 2-point line); line requires 3+ rows; invalid evaluator format strings filtered
+- agents/m1/nodes/result_evaluator_node.py — same 2-row→bar / 3+→line rule in _format_hint
+- agents/m1/nodes/t3_aggregator_node.py — value-column detection + pivot values via safe coercion
+- agents/m1/tools/db_query_tool.py — NEW TEMPLATE_VIZ_HINTS (per-template chart_type/x/y/sort_by for T1–T10) + COMPARISON_VIZ_HINTS (bar over period); both return paths now emit visualization_hints — first time T1 carries hints
+- agents/prompts/m1_planner.py — visualization_hints now mandatory-when-chartable with explicit chart_type rules; axes must come from expected_columns
+- backend/api/v1/m1_query.py — initial state now includes output_format/chart_config/visualization_hints
+Verification: scratchpad test suite simulating evaluator→validation→selector→chart pipeline over every ERP_Test_Questions.md data shape — 49/49 PASSED; both legacy + stratified graphs import and build; frontend unchanged (config emits both shapes LineChart/BarChart/OutputRenderer accept)
+Result: SUCCESS — Q1.3 comparison renders bar chart with coerced values; no crash
+
+---
+
+## Step 32
+
+Time: 2026-07-04
+Action: Post-live-testing fixes from M1 screenshot analysis (labels, date-context, KPI cards, digit consistency)
+Reason: Live chat screenshots showed: bar labels "1.0/2.0" instead of Q1/Q2; line-chart x labels as raw ISO timestamps ("2026-01-01T00:00:00+00:00"); follow-up "اعرضهالي على مدار الشهر" after a 2024 analysis resolved to July-2024 (current month mixed with prior year) then "اعرض مبيعات السنة" charted 2026 instead of 2024 (frame poisoned by the failed empty turn); metric cards showed a per-invoice value (638.4) contradicting the narrative total plus "INVOICE DATE 2024" as a KPI; Arabic-Indic digits (٦٣٨٫٤) on cards vs Latin digits on charts. Expected behavior clarified: "أداء مبيعاتنا في 2024" must chart the monthly time series of 2024 (T2), and since data covers Jan–Jun only, GROUP BY month naturally yields just those months.
+Files:
+- agents/m1/nodes/chart_config_node.py — _humanize_x_value: ISO timestamps → "YYYY-MM" (day kept if not month-start), numeric quarter columns → "Q{n}", integral floats stripped of ".0"
+- agents/prompts/m1_followup.py — DATE-CONTEXT RULES: prior year is sticky; never mix current calendar month with prior-frame year; "على مدار الشهر/شهرياً" = grain→month over the SAME date_range (drill_down), not the current month; today's date only for genuinely relative phrases
+- agents/m1/tools/db_query_tool.py — TEMPLATE_PROMPT date rules (named year → full YYYY-01-01..YYYY-12-31, never substitute current year) + prefer T2 for performance/trend questions over multi-month periods
+- agents/m1/nodes/context_saver_node.py — empty/failed turns persist the prior (working) analysis_frame instead of the dead-end frame, so follow-ups keep resolving against real context
+- agents/prompts/nl2sql.py — result-shape rules: totals → ONE aggregated row; trends → GROUP BY DATE_TRUNC month ordered ascending; named year exact; never mix detail + aggregate columns
+- frontend/components/m1/MetricCard.tsx — KPI cards filter out date/period/id/internal columns (fallback to all if empty)
+- frontend/lib/rtl.ts + LineChart.tsx + BarChart.tsx — Latin digits in both languages everywhere (labels stay localized); formatNumber also strips thousands-commas before parsing strings
+Verification: scratchpad suite extended with humanization + numeric-quarter + ISO-label pipeline cases — 57/57 PASSED; backend graphs import + build OK; `npm run build` — all 10 routes compiled
+Result: SUCCESS — remaining risk is LLM behavior (template/year selection), needs a live conversational pass over ERP_Test_Questions.md chains
+
+---
+
+## Step 33
+
+Time: 2026-07-05
+Action: Deterministic guards for follow-up date drift + comparison-merge aggregation (from live execution-trace analysis)
+Reason: Live trace of session 50831cd8 showed: Query 1 ("اعرضلي ادائنا في 2024 على مدار الشهر") rendered perfectly (2024 sticky, T2, 6 months Jan–Jun only, clean "2024-01" labels — Step 31/32 fixes confirmed working). Query 2 ("قارنلي بقى الربع الاول والتاني من نفس السنة") failed: the follow-up resolver (gpt-4o-mini) wrote comparison_range 2026-01-01..2026-06-30 DESPITE the Step-32 prompt rules — prompt-only defenses are insufficient for small models; the polluted frame then drove a redundant third nl2sql step (2026 data) that won over the two correct T2 2024 executions. Trace also exposed a latent bug: T2 comparison mode stamps every monthly row with the same period label (6×"Q1-2024" duplicate x categories), and intent leaked as clarification_needed on an unmapped router domain (skips anomaly scan, skews narrative prompt).
+Files:
+- agents/m1/nodes/followup_resolver_node.py — _enforce_year_stickiness(): post-merge CODE guard — if the LLM changed the year of date_range/comparison_range and the user's message contains neither an explicit year (regex) nor a relative-year phrase (السنة دي/اللي فاتت/last year...), the prior frame's year is force-restored (logged as followup_year_stickiness_enforced)
+- agents/m1/tools/db_query_tool.py — _one_row_per_period(): comparison mode now aggregates multi-row template results (SUM of numeric columns via safe coercion) into ONE labeled row per period → "قارن الربعين" yields exactly 2 bars (Q1-2024, Q2-2024)
+- agents/prompts/nl2sql.py — period-comparison shape rule: one aggregated row per period with a readable label (CASE quarter → GROUP BY), never one-row-per-month
+- agents/prompts/m1_planner.py — one retrieval step for simple period comparisons; never re-fetch data another step covers; take the analysis period from the frame verbatim
+- agents/m1/nodes/chart_config_node.py — x-axis picker prefers explicit period/quarter label columns over generic time columns, but only when values are unique per row (repeated Q1,Q1,Q1 is not an axis)
+- agents/m1/nodes/intent_router_node.py — unmapped router domains fall back by tier (T0→conversation, T4→clarification_needed, T5→out_of_scope, T6→support, analytical tiers→financial_query) instead of always clarification_needed
+Verification: scratchpad suite extended (year-guard cases incl. the exact production failure string, comparison aggregation incl. formatted-string sums, quarter-axis preference + repeated-label rejection, trace payload end-to-end) — 70/70 PASSED; both graphs import + build OK; no frontend changes
+Result: SUCCESS — remaining risk is LLM-side (planner/model may still plan oddly); year drift and duplicate-label rendering are now impossible by construction. Needs backend restart + live re-test of the two-message chain
+
+---
+
+## Step 34
+
+Time: 2026-07-05
+Action: Root-cause fix for comparison rendering (executor template-trust) + self-review hardening + Arabic chart labels
+Reason: New live screenshot ("قارنلي بقى الربع الأول والتاني من نفس السنة 2024") showed the year now correct but the chart still monthly (6 bars) instead of 2 quarter bars. Reading t3_executor_node exposed the true root cause of ALL comparison failures: _step_result_is_complete required the template result's columns to match the planner's GUESSED expected_columns — the correct T2 comparison output ([period, revenue]) never matched, was silently discarded, and the redundant NL2SQL step's output won. Self-review of Step 33 also found a bug in the year guard (a single sticky year clobbers a legitimate multi-year prior, e.g. date_range 2024 + comparison_range 2023) and that a hinted x_axis bypassed the duplicate-label check.
+Files:
+- agents/m1/nodes/t3_executor_node.py — non-empty template step results are trusted as complete even on result_shape_mismatch (logged as t3_template_shape_mismatch_accepted); empty results still fall through to NL2SQL
+- agents/m1/nodes/followup_resolver_node.py — year guard rewritten per-key: each range anchors to ITS OWN prior year (legit last-year comparison_range survives), fallback to the frame's main year for newly-added ranges; added السابقه/العام السابق signals
+- agents/prompts/nl2sql.py — date-scope rule: frame's date_range/comparison_range are MANDATORY WHERE bounds copied verbatim
+- agents/m1/nodes/chart_config_node.py — _unique_per_row(): hinted x_axis must also have unique labels; period/quarter preference refactored to same check; _label() localizes ~26 common column names to Arabic (period→الفترة, revenue→الإيراد...) when language=ar — axis labels and series names no longer English on the Arabic UI
+Verification: suite extended (per-key year anchoring incl. 2023-comparison preservation, repeated-hint-x rejection, AR label assertions) — 74/74 PASSED; both graphs build OK
+Result: SUCCESS — with executor trust + aggregated comparison merge (Step 33), "قارن الربعين" now renders 2 labeled bars by construction. Chart component inventory reviewed: Line/Bar/MetricCard/SortableTable/AlertCard cover all question-bank outputs; no new chart types needed now (candidates deferred: vertical time bars, stacked composition, waterfall for net income). LangGraph/LangChain docs research subagent launched in background
+
+---
+
+## Step 35
+
+Time: 2026-07-05
+Action: LangGraph/LangChain modernization research (background subagent) — findings recorded, no code changes
+Reason: User requested research into latest LangGraph/LangChain docs for features addressing our pain points (structured-output drift, redundant fetches, custom context persistence).
+Findings (verified against docs.langchain.com, July 2026; installed: langgraph 1.2.6, langchain-openai 1.3.3, langgraph-checkpoint 4.1.0 — cache-RCE advisory GHSA-mhr3-j7m5-c7c9 already satisfied, core patterns not deprecated):
+1. ADOPT: our code pins method="function_calling" in with_structured_output everywhere — the modern default json_schema uses constrained decoding; dynamic per-request schemas (Literal allowed years) can enforce year-stickiness at token level. strict=True would require removing Field defaults from models — start with plain json_schema.
+2. ADOPT NEXT: M1 thread persistence via existing AsyncPostgresSaver + durability="exit" (one write per turn), retiring custom analysis_frame save/load in context_saver/loader.
+3. MEASURE FIRST: CachePolicy(key_func over SQL args) on executor steps for dedupe — likely unnecessary after Step 34's template-trust fix.
+4. DEFERRED: Command-based router (ergonomics), Send fan-out (plans rarely have independent steps), LangSmith thread-level evals + run metadata (tier/template/date_range) for wrong-year dashboards, BaseStore cross-thread memory.
+5. Deploy note: all 1.x packages require Python 3.10+ — verify Render runtime.
+Result: SUCCESS — research logged; recommendation #1 queued pending live re-test of Step 33/34 fixes

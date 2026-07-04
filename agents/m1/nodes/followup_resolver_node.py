@@ -27,6 +27,69 @@ logger = structlog.get_logger(__name__)
 _REASON_SIGNALS = ("ليه", "فسر", "اشرح", "why", "explain", "reason")
 _SUMMARY_SIGNALS = ("لخص", "ملخص", "summary", "summarize")
 
+# ── Year-stickiness enforcement ─────────────────────────────────────
+# The prompt tells the LLM the prior year is sticky, but small models break
+# the rule ("قارن الربع الأول والتاني من نفس السنة" resolved to the current
+# year in production). Enforce it in code: unless the user's message names a
+# year or an explicit relative-year phrase, any year the LLM changed is
+# reverted to the prior frame's year.
+_YEAR_RE = re.compile(r"\b(?:19|20)\d{2}\b")
+_EXPLICIT_YEAR_SIGNALS = (
+    # current year
+    "السنه دي", "هذه السنه", "السنه الحاليه", "this year", "current year",
+    # other years relative to today
+    "اللي فاتت", "الماضيه", "العام الماضي", "السابقه", "العام السابق",
+    "السنه الجايه", "القادمه",
+    "last year", "next year", "previous year",
+)
+
+
+def _range_year(rng) -> str | None:
+    """Year of a {start, end} range dict, if parseable."""
+    if isinstance(rng, dict):
+        match = _YEAR_RE.search(str(rng.get("start") or ""))
+        if match:
+            return match.group(0)
+    return None
+
+
+def _enforce_year_stickiness(query: str, prior: dict, frame: dict) -> dict:
+    """Revert LLM-introduced year drift in date ranges.
+
+    Per-key: each range is anchored to ITS OWN prior year (a legitimate
+    last-year comparison_range must not be clobbered by date_range's year);
+    a range the prior frame lacks falls back to the prior frame's main year.
+    """
+    if _YEAR_RE.search(query):
+        return frame  # the user named a year — respect it
+    normalized = normalize_text(query)
+    if any(signal in normalized for signal in _EXPLICIT_YEAR_SIGNALS):
+        return frame  # explicit relative reference — respect it
+
+    fallback_year = _range_year(prior.get("date_range")) or _range_year(
+        prior.get("comparison_range")
+    )
+    if not fallback_year:
+        return frame
+
+    for key in ("date_range", "comparison_range"):
+        rng = frame.get(key)
+        if not isinstance(rng, dict):
+            continue
+        expected_year = _range_year(prior.get(key)) or fallback_year
+        for bound in ("start", "end"):
+            value = rng.get(bound)
+            if isinstance(value, str) and _YEAR_RE.match(value) and not value.startswith(expected_year):
+                corrected = expected_year + value[4:]
+                logger.info(
+                    "followup_year_stickiness_enforced",
+                    field=f"{key}.{bound}",
+                    drifted=value,
+                    corrected=corrected,
+                )
+                rng[bound] = corrected
+    return frame
+
 
 def _has(text: str, signals: tuple[str, ...]) -> bool:
     return any(
@@ -156,6 +219,9 @@ async def resolve_followup(state: M1State) -> dict:
     )
 
     updated_frame = _merge_resolution_into_frame(prior, resolution)
+    updated_frame = _enforce_year_stickiness(
+        state.get("query", ""), prior, updated_frame
+    )
 
     logger.info(
         "followup_resolved",
