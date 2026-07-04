@@ -19,6 +19,27 @@ test-results/
 *.log
 *.sqlite
 *.db
+.env
+env
+.env.local
+.env.*.local
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+node_modules/
+.next/
+out/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.log
+*.sqlite
+*.db
 .DS_Store
 
 
@@ -27,3 +48,6 @@ frontend/next-env.d.ts
 
 # Deployment Handbook / Configs
 .env0
+
+# IDE Customizations & Agent Skills
+.agents/
