@@ -26,7 +26,8 @@ export default function M2Dashboard() {
     setLoadingInventory(true);
     setError(null);
     try {
-      const response = await fetch(`/api/v1/m2/inventory`);
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+      const response = await fetch(`${API_BASE}/api/v1/m2/inventory`);
       if (!response.ok) throw new Error('Failed to fetch inventory');
       const data: InventoryStatusResponse = await response.json();
       setInventoryData(data);
@@ -49,7 +50,8 @@ export default function M2Dashboard() {
     setAnalyzing(true);
     setError(null);
     try {
-      const response = await fetch(`/api/v1/m2/analyze`, {
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+      const response = await fetch(`${API_BASE}/api/v1/m2/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ trigger_source: 'manual', language: 'ar-EG' }),
