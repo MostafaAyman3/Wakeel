@@ -9,6 +9,7 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 python-dotenv
+python-multipart
 
 # ── Database (SQLAlchemy + asyncpg for Supabase) ─────────────
 sqlalchemy
