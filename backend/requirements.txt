@@ -8,6 +8,7 @@ alembic
 redis
 httpx
 python-jose[cryptography]
+python-multipart
 passlib[bcrypt]
 structlog
 langgraph
