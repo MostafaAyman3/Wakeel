@@ -57,6 +57,10 @@ Wakeel is a unified hub with a global **Module Switcher** in the header for seam
 - **Adaptive Output**: Dynamically selects Metric Cards, ECharts (bar/line), Sortable Tables, Narratives, or Alerts
 - **Context Persistence**: Structured `analysis_frame` tracking in `conversations` table enables drill-down follow-ups
 
+### M2 — Procurement Agent
+- **Frontend Dashboard Integrated**: M2 provides a procurement dashboard focusing on inventory status, active alerts, RFQ drafts, and pricing recommendations.
+- **Unified Navigation**: The UI layout is established and accessible via the global Module Switcher. *(Note: The backend AI orchestration for M2 is currently deferred to future iterations).*
+
 ### M3 — Customer Support Agent
 - **4-way Intent Routing**: Greeting / General Knowledge / Customer Issue / Hybrid
 - **Dynamic RAG Responses**: Retrieves from support knowledge base and tax law documents
