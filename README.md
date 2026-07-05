@@ -12,6 +12,9 @@
 
 <br />
 
+**🌍 Live Deployment:** [https://wakeel-two.vercel.app/](https://wakeel-two.vercel.app/)  
+*(Note: The codebase for this deployed version resides in the `feature/vercel-deployment` branch.)*
+
 **Wakeel** is a production-grade, multi-agent AI platform built on top of ERP data. It combines LangGraph orchestration, GPT-4o reasoning, pgvector semantic search, and a bilingual (Arabic/English) Next.js frontend to deliver three specialized AI copilots: a Financial Intelligence Agent, a Procurement Dashboard, and a Human-in-the-Loop Customer Support Agent.
 
 ---
